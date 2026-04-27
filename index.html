@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pixel Quest RPG</title>
+    <title>Tron Multiplayer</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
@@ -11,10 +11,8 @@
         :root {
             --bg-dark: #0a0a12;
             --bg-med: #1a1a2e;
-            --accent: #e94560;
-            --secondary: #4ecca3;
-            --yellow: #facc15;
-            --blue: #0f3460;
+            --neon-blue: #00f2ff;
+            --neon-pink: #ff00ea;
         }
 
         body {
@@ -26,429 +24,255 @@
             margin: 0;
         }
 
-        #loadingOverlay {
-            background: radial-gradient(circle, #1a1a2e 0%, #0a0a12 100%);
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            z-index: 1000;
-        }
-
-        .loader-box {
-            width: 300px;
-            height: 24px;
-            background: rgba(255,255,255,0.05);
-            border: 4px solid var(--blue);
-            padding: 2px;
-            border-radius: 2px;
-        }
-
-        #loadingFill {
-            width: 0%;
-            height: 100%;
-            background: var(--yellow);
-            box-shadow: 0 0 15px var(--yellow);
-            transition: width 0.1s linear;
-        }
-
         canvas {
             image-rendering: pixelated;
-            background-color: #2d3436;
-            border: 6px solid var(--blue);
-            border-radius: 4px;
-            box-shadow: 0 0 50px rgba(0,0,0,0.8);
+            background-color: #000;
+            border: 4px solid #1a1a2e;
+            box-shadow: 0 0 20px rgba(0, 242, 255, 0.2);
         }
 
-        .pixel-ui-panel {
+        .pixel-panel {
             background-color: var(--bg-med);
-            border: 4px solid var(--blue);
-            box-shadow: 6px 6px 0px rgba(0,0,0,0.4);
+            border: 4px solid #0f3460;
+            box-shadow: 6px 6px 0px rgba(0,0,0,0.5);
         }
 
-        .action-btn {
-            background: var(--yellow);
-            color: black;
-            padding: 16px;
-            border-bottom: 6px solid #b45309;
+        .btn {
+            background: #0f3460;
+            color: white;
+            padding: 12px;
+            border-bottom: 4px solid #0a0a12;
             transition: all 0.1s;
+            cursor: pointer;
         }
 
-        .action-btn:active {
-            transform: translateY(4px);
+        .btn:active {
+            transform: translateY(2px);
             border-bottom-width: 2px;
         }
 
-        .crt-effect::after {
-            content: " ";
-            display: block;
-            position: absolute;
-            top: 0; left: 0; bottom: 0; right: 0;
-            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.1) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.03), rgba(0, 255, 0, 0.01), rgba(0, 0, 255, 0.03));
-            z-index: 2;
-            background-size: 100% 2px, 3px 100%;
-            pointer-events: none;
+        .neon-text {
+            text-shadow: 0 0 10px var(--neon-blue);
         }
     </style>
 </head>
-<body class="flex flex-col items-center justify-center min-h-screen p-4 crt-effect">
+<body class="flex flex-col items-center justify-center min-h-screen p-4">
 
-    <div id="loadingOverlay" class="fixed inset-0">
-        <h1 class="text-2xl text-yellow-400 mb-8 tracking-widest">LOADING RPG WORLD</h1>
-        <div class="loader-box">
-            <div id="loadingFill"></div>
-        </div>
-        <div id="loadingInfo" class="mt-4 text-[8px] text-gray-400 uppercase">Generating Items...</div>
-    </div>
-
-    <div id="startMenu" class="hidden flex flex-col items-center gap-8 max-w-lg w-full z-10">
-        <div class="text-center">
-            <h1 class="text-3xl text-yellow-400 mb-2 font-bold tracking-tighter">PIXEL IDLE QUEST</h1>
-            <h2 class="text-sm text-white tracking-widest uppercase">Loot & Level up</h2>
-        </div>
+    <!-- Menu -->
+    <div id="menu" class="flex flex-col items-center gap-6 w-full max-w-md">
+        <h1 class="text-3xl neon-text mb-4">TRON.NET</h1>
         
-        <div class="pixel-ui-panel p-8 w-full text-center">
-            <button id="launchBtn" class="action-btn w-full text-xs font-bold uppercase">Enter the Dungeon</button>
+        <div class="pixel-panel p-6 w-full flex flex-col gap-4">
+            <input id="lobbyInput" type="text" placeholder="ENTER CODE" maxlength="5" class="bg-black border-2 border-[#0f3460] p-3 text-center text-xs outline-none focus:border-cyan-400">
+            <div class="flex gap-2">
+                <button id="joinBtn" class="btn flex-1 text-[10px]">JOIN GAME</button>
+                <button id="createBtn" class="btn flex-1 text-[10px]">CREATE LOBBY</button>
+            </div>
         </div>
     </div>
 
-    <div id="gameUI" class="hidden flex flex-col items-center w-full max-w-4xl">
-        <div class="w-full grid grid-cols-3 mb-4 px-4 gap-4">
-            <div class="pixel-ui-panel p-2 flex flex-col gap-1">
-                <div class="text-[8px] text-gray-400 uppercase">Hero Status</div>
-                <div class="text-[10px] text-white">LVL <span id="lvlLabel">1</span></div>
-                <div class="w-full h-2 bg-gray-900 border border-gray-700">
-                    <div id="expBar" class="h-full bg-blue-500" style="width: 0%"></div>
-                </div>
-            </div>
-            
-            <div class="pixel-ui-panel p-2 flex flex-col gap-1">
-                <div class="text-[8px] text-gray-400 uppercase">Vitals</div>
-                <div class="text-[10px] text-emerald-400">HP: <span id="hpLabel">50/50</span></div>
-                <div class="w-full h-2 bg-gray-900 border border-gray-700">
-                    <div id="hpBar" class="h-full bg-emerald-500" style="width: 100%"></div>
-                </div>
-            </div>
-
-            <div class="pixel-ui-panel p-2 flex flex-col gap-1">
-                <div class="text-[8px] text-gray-400 uppercase">Equipment</div>
-                <div class="text-[9px] text-yellow-400 truncate" id="weaponLabel">Stick (+1 ATK)</div>
+    <!-- Lobby -->
+    <div id="lobby" class="hidden flex flex-col items-center gap-6 w-full max-w-md">
+        <h2 class="text-xl">LOBBY: <span id="lobbyCodeLabel" class="text-cyan-400"></span></h2>
+        <div class="pixel-panel p-6 w-full min-h-[150px]">
+            <div id="playerList" class="flex flex-col gap-2 text-[10px]">
+                <!-- Players -->
             </div>
         </div>
+        <button id="startBtn" class="btn w-full text-xs hidden">START INITIALIZATION</button>
+    </div>
 
-        <div class="relative">
-            <canvas id="stage"></canvas>
-            <div id="combatLog" class="absolute top-0 right-0 p-2 text-[7px] text-white pointer-events-none flex flex-col items-end gap-1"></div>
+    <!-- Game -->
+    <div id="gameUI" class="hidden flex flex-col items-center gap-4">
+        <div class="flex justify-between w-full text-[8px] text-gray-400 px-2">
+            <span>CODE: <span id="gameCodeLabel"></span></span>
+            <span id="gameStatusLabel">WAITING...</span>
         </div>
+        <canvas id="stage"></canvas>
     </div>
 
-    <div id="endOverlay" class="fixed inset-0 bg-black/95 hidden z-[50] flex flex-col items-center justify-center p-8">
-        <h1 class="text-3xl text-red-500 mb-6 uppercase">YOU DIED</h1>
-        <p id="endText" class="text-[10px] text-gray-400 mb-10 text-center"></p>
-        <button id="retryBtn" class="action-btn px-12 text-xs">Respawn</button>
-    </div>
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, setDoc, onSnapshot, updateDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-    <script>
-        const TILE_SIZE = 40;
-        const GRID_W = 16;
-        const GRID_H = 12;
-        const MOVE_SMOOTHING = 0.08; 
+        // Firebase Setup
+        const firebaseConfig = JSON.parse(__firebase_config);
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'tron-multiplayer';
 
-        const State = {
-            running: false,
-            sector: 1,
-            enemies: [],
-            walls: [],
-            drops: [],
-            particles: []
-        };
-
-        const weapons = [
-            { name: "Stick", atk: 2, color: "#8B4513" },
-            { name: "Wooden Sword", atk: 5, color: "#DEB887" },
-            { name: "Bronze Dagger", atk: 9, color: "#CD7F32" },
-            { name: "Iron Blade", atk: 15, color: "#bdc3c7" },
-            { name: "Steel Greatsword", atk: 24, color: "#95a5a6" },
-            { name: "Golden Saber", atk: 35, color: "#f1c40f" },
-            { name: "Crystal Claymore", atk: 50, color: "#3498db" }
-        ];
-
-        const player = {
-            x: 1, y: 1,
-            targetX: 1, targetY: 1,
-            hp: 50, maxHp: 50,
-            lvl: 1, exp: 0, expNext: 100,
-            weaponIdx: 0,
-            atk: 2
-        };
-
+        const TILE_SIZE = 10;
+        const GRID_SIZE = 40;
         const canvas = document.getElementById('stage');
         const ctx = canvas.getContext('2d');
-        canvas.width = GRID_W * TILE_SIZE;
-        canvas.height = GRID_H * TILE_SIZE;
+        canvas.width = GRID_SIZE * TILE_SIZE;
+        canvas.height = GRID_SIZE * TILE_SIZE;
 
-        const input = {};
-        window.onkeydown = e => input[e.code] = true;
-        window.onkeyup = e => input[e.code] = false;
+        let user = null;
+        let currentLobby = null;
+        let lobbyData = null;
+        let myDir = { x: 1, y: 0 };
+        let nextDir = { x: 1, y: 0 };
+        let lastTick = 0;
+        const TICK_RATE = 150; // Moderate speed
 
-        function logMessage(text, color = "white") {
-            const log = document.getElementById('combatLog');
-            const entry = document.createElement('div');
-            entry.innerText = text;
-            entry.style.color = color;
-            log.prepend(entry);
-            if(log.children.length > 5) log.lastChild.remove();
-            setTimeout(() => entry.style.opacity = '0', 2000);
-            setTimeout(() => entry.remove(), 2500);
-        }
+        // Rule 3: Auth First
+        onAuthStateChanged(auth, (u) => {
+            user = u;
+            if (!user) signInAnonymously(auth);
+        });
 
-        function spawnParticles(x, y, color) {
-            for(let i=0; i<6; i++) {
-                State.particles.push({
-                    x, y,
-                    vx: (Math.random()-0.5)*4,
-                    vy: (Math.random()-0.5)*4,
-                    life: 1,
-                    color
-                });
-            }
-        }
+        const getLobbyRef = (code) => doc(db, 'artifacts', appId, 'public', 'data', 'lobbies', code);
 
-        function generateMap() {
-            State.walls = []; State.enemies = []; State.drops = [];
-            player.x = player.targetX = 1;
-            player.y = player.targetY = 1;
-
-            for(let y=0; y<GRID_H; y++){
-                for(let x=0; x<GRID_W; x++){
-                    if(x===0 || x===GRID_W-1 || y===0 || y===GRID_H-1) State.walls.push({x,y});
-                    else if(Math.random() > 0.85 && x > 2) State.walls.push({x,y});
-                    else if(Math.random() > 0.92) {
-                        const mHp = 10 + (State.sector * 8);
-                        State.enemies.push({
-                            x, y, tx:x, ty:y,
-                            hp: mHp, maxHp: mHp,
-                            atk: 3 + State.sector,
-                            lvl: State.sector,
-                            wait: 0
-                        });
-                    }
+        async function createLobby() {
+            if (!user) return;
+            const code = Math.random().toString(36).substring(2, 7).toUpperCase();
+            const ref = getLobbyRef(code);
+            const initial = {
+                code,
+                hostId: user.uid,
+                status: 'waiting',
+                players: {
+                    [user.uid]: { id: user.uid, x: 5, y: 20, dir: { x: 1, y: 0 }, alive: true, trail: [], color: '#00f2ff' }
                 }
-            }
-            updateUI();
+            };
+            await setDoc(ref, initial);
+            joinLobby(code);
         }
 
-        const isSolid = (nx, ny) => State.walls.some(w => w.x === nx && w.y === ny);
+        async function joinLobby(code) {
+            code = code.toUpperCase();
+            const ref = getLobbyRef(code);
+            currentLobby = code;
 
-        function checkCombat(nx, ny) {
-            const enemy = State.enemies.find(e => Math.round(e.tx) === nx && Math.round(e.ty) === ny);
-            if(enemy) {
-                const dmg = player.atk + Math.floor(Math.random()*3);
-                enemy.hp -= dmg;
-                logMessage(`HIT MONSTER for ${dmg}`, "#f1c40f");
-                spawnParticles(enemy.x * TILE_SIZE + 20, enemy.y * TILE_SIZE + 20, "red");
-                
-                if(enemy.hp <= 0) {
-                    const xpGain = 20 + (enemy.lvl * 5);
-                    player.exp += xpGain;
-                    logMessage(`DEFEATED! +${xpGain} XP`, "#4ecca3");
-                    
-                    // Chance for weapon drop
-                    if(Math.random() > 0.7 && player.weaponIdx < weapons.length - 1) {
-                        State.drops.push({x: enemy.tx, y: enemy.ty, type: 'weapon'});
-                    }
-
-                    State.enemies = State.enemies.filter(e => e !== enemy);
-                    if(player.exp >= player.expNext) levelUp();
-                } else {
-                    const eDmg = enemy.atk;
-                    player.hp -= eDmg;
-                    logMessage(`MONSTER hits back for ${eDmg}`, "#e94560");
-                    if(player.hp <= 0) gameOver();
-                }
-                return true;
-            }
-            return false;
-        }
-
-        function levelUp() {
-            player.lvl++;
-            player.exp -= player.expNext;
-            player.expNext = Math.floor(player.expNext * 1.5);
-            player.maxHp += 10;
-            player.hp = player.maxHp;
-            player.atk += 2;
-            logMessage(`LEVEL UP! LVL ${player.lvl}`, "cyan");
-            updateUI();
-        }
-
-        function gameOver() {
-            State.running = false;
-            document.getElementById('endText').innerText = `Reached Sector ${State.sector} at Level ${player.lvl}`;
-            document.getElementById('endOverlay').classList.remove('hidden');
-        }
-
-        function update() {
-            if(!State.running) return;
-
-            if(player.x === player.targetX && player.y === player.targetY) {
-                let dx=0, dy=0;
-                if(input['KeyW']) dy=-1;
-                else if(input['KeyS']) dy=1;
-                else if(input['KeyA']) dx=-1;
-                else if(input['KeyD']) dx=1;
-
-                if(dx!==0 || dy!==0) {
-                    const nx = player.x + dx;
-                    const ny = player.y + dy;
-                    if(!isSolid(nx, ny)) {
-                        if(!checkCombat(nx, ny)) {
-                            player.targetX = nx;
-                            player.targetY = ny;
-                        }
-                    }
-                }
-            }
-
-            player.x += (player.targetX - player.x) * MOVE_SMOOTHING;
-            player.y += (player.targetY - player.y) * MOVE_SMOOTHING;
-
-            // Collect drops
-            State.drops = State.drops.filter(d => {
-                const dist = Math.sqrt((player.x - d.x)**2 + (player.y - d.y)**2);
-                if(dist < 0.4) {
-                    if(d.type === 'weapon') {
-                        player.weaponIdx++;
-                        player.atk += weapons[player.weaponIdx].atk;
-                        logMessage(`FOUND NEW WEAPON: ${weapons[player.weaponIdx].name}`, "#facc15");
-                    }
-                    updateUI();
-                    return false;
-                }
-                return true;
+            onSnapshot(ref, (snap) => {
+                if (!snap.exists()) return;
+                lobbyData = snap.data();
+                renderLobby();
+                if (lobbyData.status === 'playing') startGameUI();
             });
 
-            // Enemies idle move
-            State.enemies.forEach(e => {
-                if(e.x === e.tx && e.y === e.ty) {
-                    if(e.wait > 0) e.wait--;
-                    else {
-                        const d = [[0,1],[0,-1],[1,0],[-1,0]][Math.floor(Math.random()*4)];
-                        const nx = e.x + d[0], ny = e.y + d[1];
-                        if(!isSolid(nx, ny) && !(nx===player.targetX && ny===player.targetY)) {
-                            e.tx = nx; e.ty = ny;
-                        }
-                        e.wait = 120 + Math.random()*60;
-                    }
-                }
-                e.x += (e.tx - e.x) * 0.05;
-                e.y += (e.ty - e.y) * 0.05;
-            });
-
-            // Particles
-            State.particles.forEach((p, i) => {
-                p.x += p.vx; p.y += p.vy; p.life -= 0.02;
-                if(p.life <= 0) State.particles.splice(i, 1);
-            });
-
-            if(State.enemies.length === 0) {
-                State.sector++;
-                generateMap();
+            // Add self if not host
+            const snap = await (await import("https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js")).getDoc(ref);
+            if (snap.exists() && snap.data().hostId !== user.uid) {
+                const ps = snap.data().players;
+                ps[user.uid] = { id: user.uid, x: 35, y: 20, dir: { x: -1, y: 0 }, alive: true, trail: [], color: '#ff00ea' };
+                await updateDoc(ref, { players: ps });
             }
 
-            updateUI();
+            document.getElementById('menu').classList.add('hidden');
+            document.getElementById('lobby').classList.remove('hidden');
+            document.getElementById('lobbyCodeLabel').innerText = code;
+        }
+
+        function renderLobby() {
+            const list = document.getElementById('playerList');
+            list.innerHTML = '';
+            Object.values(lobbyData.players).forEach(p => {
+                const div = document.createElement('div');
+                div.innerText = `> PLAYER_${p.id.substring(0, 4)} [READY]`;
+                list.appendChild(div);
+            });
+            if (user.uid === lobbyData.hostId && Object.keys(lobbyData.players).length >= 2) {
+                document.getElementById('startBtn').classList.remove('hidden');
+            }
+        }
+
+        function startGameUI() {
+            document.getElementById('lobby').classList.add('hidden');
+            document.getElementById('gameUI').classList.remove('hidden');
+            document.getElementById('gameCodeLabel').innerText = currentLobby;
+            requestAnimationFrame(gameLoop);
+        }
+
+        // Input
+        window.addEventListener('keydown', (e) => {
+            if (e.key === 'w' || e.key === 'ArrowUp') if (myDir.y === 0) nextDir = { x: 0, y: -1 };
+            if (e.key === 's' || e.key === 'ArrowDown') if (myDir.y === 0) nextDir = { x: 0, y: 1 };
+            if (e.key === 'a' || e.key === 'ArrowLeft') if (myDir.x === 0) nextDir = { x: -1, y: 0 };
+            if (e.key === 'd' || e.key === 'ArrowRight') if (myDir.x === 0) nextDir = { x: 1, y: 0 };
+        });
+
+        async function tick() {
+            if (!lobbyData || lobbyData.status !== 'playing') return;
+            const me = lobbyData.players[user.uid];
+            if (!me.alive) return;
+
+            myDir = nextDir;
+            const newX = me.x + myDir.x;
+            const newY = me.y + myDir.y;
+
+            // Collision check
+            let alive = true;
+            if (newX < 0 || newX >= GRID_SIZE || newY < 0 || newY >= GRID_SIZE) alive = false;
+            
+            // Trail collision
+            Object.values(lobbyData.players).forEach(p => {
+                if (p.trail.some(t => t.x === newX && t.y === newY)) alive = false;
+                if (p.x === newX && p.y === newY) alive = false;
+            });
+
+            const newTrail = [...me.trail, { x: me.x, y: me.y }];
+            
+            const ps = lobbyData.players;
+            ps[user.uid] = { ...me, x: newX, y: newY, trail: newTrail, alive };
+            
+            await updateDoc(getLobbyRef(currentLobby), { players: ps });
+            
+            if (!alive) document.getElementById('gameStatusLabel').innerText = "DISCONNECTED / CRASHED";
         }
 
         function draw() {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            
-            // Grid background
-            ctx.strokeStyle = "rgba(255,255,255,0.03)";
-            for(let i=0; i<GRID_W; i++) ctx.strokeRect(i*TILE_SIZE, 0, 1, canvas.height);
-            for(let i=0; i<GRID_H; i++) ctx.strokeRect(0, i*TILE_SIZE, canvas.width, 1);
+            ctx.fillStyle = '#000';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-            // Walls
-            ctx.fillStyle = "#1a1a2e";
-            State.walls.forEach(w => {
-                ctx.fillRect(w.x*TILE_SIZE, w.y*TILE_SIZE, TILE_SIZE-2, TILE_SIZE-2);
-            });
-
-            // Drops
-            State.drops.forEach(d => {
-                const bounce = Math.sin(Date.now()/200)*5;
-                ctx.fillStyle = "#f1c40f";
-                ctx.fillRect(d.x*TILE_SIZE+15, d.y*TILE_SIZE+15+bounce, 10, 10);
-            });
-
-            // Enemies
-            State.enemies.forEach(e => {
-                ctx.fillStyle = "#e94560";
-                ctx.fillRect(e.x*TILE_SIZE+8, e.y*TILE_SIZE+8, 24, 24);
-                // Health bar
-                ctx.fillStyle = "#333";
-                ctx.fillRect(e.x*TILE_SIZE+8, e.y*TILE_SIZE+4, 24, 2);
-                ctx.fillStyle = "red";
-                ctx.fillRect(e.x*TILE_SIZE+8, e.y*TILE_SIZE+4, 24 * (e.hp/e.maxHp), 2);
-            });
-
-            // Particles
-            State.particles.forEach(p => {
-                ctx.globalAlpha = p.life;
-                ctx.fillStyle = p.color;
-                ctx.fillRect(p.x, p.y, 2, 2);
-            });
-            ctx.globalAlpha = 1;
-
-            // Player
-            ctx.fillStyle = player.color;
-            ctx.fillRect(player.x*TILE_SIZE+8, player.y*TILE_SIZE+8, 24, 24);
-            // Draw weapon
-            const wp = weapons[player.weaponIdx];
-            ctx.fillStyle = wp.color;
-            ctx.fillRect(player.x*TILE_SIZE+28, player.y*TILE_SIZE+12, 6, 16);
-        }
-
-        function updateUI() {
-            document.getElementById('hpLabel').innerText = `${Math.ceil(player.hp)}/${player.maxHp}`;
-            document.getElementById('hpBar').style.width = (player.hp/player.maxHp*100) + "%";
-            document.getElementById('lvlLabel').innerText = player.lvl;
-            document.getElementById('expBar').style.width = (player.exp/player.expNext*100) + "%";
-            const wp = weapons[player.weaponIdx];
-            document.getElementById('weaponLabel').innerText = `${wp.name} (+${wp.atk} ATK)`;
-        }
-
-        window.onload = async () => {
-            const fill = document.getElementById('loadingFill');
-            const info = document.getElementById('loadingInfo');
-            const steps = [
-                {p: 30, t: "Forging weapons..."},
-                {p: 60, t: "Summoning monsters..."},
-                {p: 100, t: "Dungeon ready."}
-            ];
-            for(const s of steps) {
-                await new Promise(r => setTimeout(r, 400));
-                fill.style.width = s.p + '%';
-                info.innerText = s.t;
+            // Grid
+            ctx.strokeStyle = '#111';
+            for (let i = 0; i < GRID_SIZE; i++) {
+                ctx.beginPath(); ctx.moveTo(i * TILE_SIZE, 0); ctx.lineTo(i * TILE_SIZE, canvas.height); ctx.stroke();
+                ctx.beginPath(); ctx.moveTo(0, i * TILE_SIZE); ctx.lineTo(canvas.width, i * TILE_SIZE); ctx.stroke();
             }
-            document.getElementById('loadingOverlay').style.display = 'none';
-            document.getElementById('startMenu').classList.remove('hidden');
-        };
 
-        document.getElementById('launchBtn').onclick = () => {
-            document.getElementById('startMenu').classList.add('hidden');
-            document.getElementById('gameUI').classList.remove('hidden');
-            generateMap();
-            State.running = true;
-        };
+            if (!lobbyData) return;
 
-        document.getElementById('retryBtn').onclick = () => location.reload();
-
-        function run() {
-            update();
-            draw();
-            requestAnimationFrame(run);
+            Object.values(lobbyData.players).forEach(p => {
+                ctx.fillStyle = p.color;
+                // Trail
+                p.trail.forEach(t => {
+                    ctx.globalAlpha = 0.4;
+                    ctx.fillRect(t.x * TILE_SIZE, t.y * TILE_SIZE, TILE_SIZE, TILE_SIZE);
+                });
+                // Head
+                ctx.globalAlpha = 1.0;
+                if (p.alive) {
+                    ctx.shadowBlur = 10; ctx.shadowColor = p.color;
+                    ctx.fillRect(p.x * TILE_SIZE, p.y * TILE_SIZE, TILE_SIZE, TILE_SIZE);
+                    ctx.shadowBlur = 0;
+                }
+            });
         }
-        run();
+
+        function gameLoop(now) {
+            if (now - lastTick > TICK_RATE) {
+                tick();
+                lastTick = now;
+            }
+            draw();
+            requestAnimationFrame(gameLoop);
+        }
+
+        // Listeners
+        document.getElementById('createBtn').onclick = createLobby;
+        document.getElementById('joinBtn').onclick = () => {
+            const val = document.getElementById('lobbyInput').value;
+            if (val) joinLobby(val);
+        };
+        document.getElementById('startBtn').onclick = async () => {
+            await updateDoc(getLobbyRef(currentLobby), { status: 'playing' });
+        };
+
     </script>
 </body>
 </html>
