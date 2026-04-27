@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Contexto Clone</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f8fafc;
+        }
+        .guess-bar {
+            transition: width 0.5s ease-out;
+        }
+        .loader {
+            border: 3px solid #f3f3f3;
+            border-radius: 50%;
+            border-top: 3px solid #3498db;
+            width: 20px;
+            height: 20px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body class="flex flex-col items-center min-h-screen p-4">
+
+    <div class="w-full max-w-md bg-white rounded-2xl shadow-xl p-6 mt-8">
+        <header class="flex justify-between items-center mb-8 border-b pb-4">
+            <h1 class="text-3xl font-bold text-gray-800">Contexto</h1>
+            <div class="text-sm font-semibold text-gray-500 uppercase tracking-wider" id="game-info">Game #1</div>
+        </header>
+
+        <div class="mb-6">
+            <p class="text-gray-600 mb-4 text-sm">Find the secret word. The closer your guess is, the lower the number and the greener the bar.</p>
+            
+            <div class="relative">
+                <input 
+                    type="text" 
+                    id="guess-input" 
+                    placeholder="Type a word..." 
+                    class="w-full p-4 pr-12 border-2 border-gray-200 rounded-xl focus:border-blue-500 outline-none transition-all text-lg"
+                    autocomplete="off"
+                >
+                <button 
+                    id="submit-btn"
+                    class="absolute right-2 top-2 bottom-2 px-4 bg-gray-800 text-white rounded-lg hover:bg-black transition-colors"
+                >
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="9 5l7 7-7 7" />
+                    </svg>
+                </button>
+            </div>
+            <div id="loading-indicator" class="hidden mt-2 flex items-center gap-2 text-blue-600 text-sm">
+                <div class="loader"></div> Calculating similarity...
+            </div>
+            <div id="error-msg" class="hidden mt-2 text-red-500 text-sm"></div>
+        </div>
+
+        <div id="guesses-list" class="space-y-3">
+            <!-- Guesses will appear here -->
+        </div>
+    </div>
+
+    <!-- Win Modal -->
+    <div id="win-modal" class="fixed inset-0 bg-black/50 hidden flex items-center justify-center p-4 z-50">
+        <div class="bg-white p-8 rounded-2xl max-w-sm w-full text-center shadow-2xl">
+            <div class="text-6xl mb-4">🏆</div>
+            <h2 class="text-2xl font-bold mb-2">Congratulations!</h2>
+            <p class="text-gray-600 mb-6">You found the word: <span id="target-word-display" class="font-bold text-green-600"></span></p>
+            <button onclick="location.reload()" class="w-full py-3 bg-green-600 text-white rounded-xl font-bold hover:bg-green-700 transition-colors">
+                Play Again
+            </button>
+        </div>
+    </div>
+
+    <script>
+        const apiKey = ""; // Environment handles this
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'contexto-clone';
+        
+        const guessInput = document.getElementById('guess-input');
+        const submitBtn = document.getElementById('submit-btn');
+        const guessesList = document.getElementById('guesses-list');
+        const loadingIndicator = document.getElementById('loading-indicator');
+        const errorMsg = document.getElementById('error-msg');
+        const winModal = document.getElementById('win-modal');
+
+        let targetWord = "";
+        let guesses = [];
+        let isProcessing = false;
+
+        // List of potential target words
+        const targetWords = ["apple", "mountain", "freedom", "computer", "ocean", "happiness", "universe", "coffee", "guitar", "science"];
+
+        async function initGame() {
+            targetWord = targetWords[Math.floor(Math.random() * targetWords.length)];
+            console.log("Debug: Target is", targetWord);
+            document.getElementById('game-info').innerText = `Game #${Math.floor(Math.random() * 999)}`;
+        }
+
+        async function callGemini(userQuery, systemPrompt) {
+            let retries = 0;
+            const maxRetries = 5;
+            
+            while (retries < maxRetries) {
+                try {
+                    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            contents: [{ parts: [{ text: userQuery }] }],
+                            systemInstruction: { parts: [{ text: systemPrompt }] }
+                        })
+                    });
+
+                    if (!response.ok) throw new Error('API error');
+                    const data = await response.json();
+                    return data.candidates?.[0]?.content?.parts?.[0]?.text;
+                } catch (e) {
+                    retries++;
+                    await new Promise(resolve => setTimeout(resolve, Math.pow(2, retries) * 1000));
+                }
+            }
+            throw new Error('Failed after retries');
+        }
+
+        async function handleGuess() {
+            const guess = guessInput.value.trim().toLowerCase();
+            if (!guess || isProcessing) return;
+            if (guesses.some(g => g.word === guess)) {
+                showError("You already guessed this word.");
+                return;
+            }
+
+            isProcessing = true;
+            loadingIndicator.classList.remove('hidden');
+            errorMsg.classList.add('hidden');
+            guessInput.value = "";
+
+            try {
+                if (guess === targetWord) {
+                    addGuess(guess, 1);
+                    showWin();
+                    return;
+                }
+
+                const systemPrompt = `You are a semantic distance engine. The target word is "${targetWord}". 
+                Rate the word "${guess}" on a scale from 2 to 1000, where 2 is extremely similar but not identical, and 1000 is completely unrelated. 
+                Consider semantic relationships, context, and category. 
+                Return ONLY the number. No text.`;
+
+                const resultText = await callGemini(guess, systemPrompt);
+                const rank = parseInt(resultText.trim().replace(/[^0-9]/g, '')) || 999;
+                
+                addGuess(guess, Math.min(Math.max(rank, 2), 1000));
+            } catch (e) {
+                showError("Something went wrong. Please try again.");
+            } finally {
+                isProcessing = false;
+                loadingIndicator.classList.add('hidden');
+            }
+        }
+
+        function addGuess(word, rank) {
+            guesses.push({ word, rank });
+            // Sort: lowest rank first
+            guesses.sort((a, b) => a.rank - b.rank);
+            renderGuesses();
+        }
+
+        function getColor(rank) {
+            if (rank === 1) return '#22c55e'; // green-500
+            if (rank <= 100) return '#4ade80'; // green-400
+            if (rank <= 300) return '#fbbf24'; // amber-400
+            if (rank <= 600) return '#fb923c'; // orange-400
+            return '#f87171'; // red-400
+        }
+
+        function renderGuesses() {
+            guessesList.innerHTML = '';
+            guesses.forEach(g => {
+                const percentage = Math.max(5, 100 - (g.rank / 10));
+                const color = getColor(g.rank);
+                
+                const div = document.createElement('div');
+                div.className = "relative h-12 bg-gray-100 rounded-lg overflow-hidden flex items-center px-4";
+                div.innerHTML = `
+                    <div class="guess-bar absolute left-0 top-0 bottom-0 z-0" style="width: ${percentage}%; background-color: ${color}"></div>
+                    <span class="relative z-10 font-bold text-gray-800 capitalize">${g.word}</span>
+                    <span class="relative z-10 ml-auto font-mono font-bold text-gray-700">${g.rank}</span>
+                `;
+                guessesList.appendChild(div);
+            });
+        }
+
+        function showWin() {
+            document.getElementById('target-word-display').innerText = targetWord;
+            winModal.classList.remove('hidden');
+        }
+
+        function showError(msg) {
+            errorMsg.innerText = msg;
+            errorMsg.classList.remove('hidden');
+        }
+
+        submitBtn.addEventListener('click', handleGuess);
+        guessInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') handleGuess();
+        });
+
+        initGame();
+    </script>
+</body>
+</html>
