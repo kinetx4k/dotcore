@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Multiplayer Quest Explorer</title>
+    <title>Multiplayer Quest Explorer - Pro</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
@@ -14,6 +14,7 @@
             --accent: #e94560;
             --secondary: #4ecca3;
             --text-light: #f8fafc;
+            --yellow: #facc15;
         }
 
         body {
@@ -22,108 +23,149 @@
             color: var(--text-light);
             overflow: hidden;
             touch-action: none;
+            margin: 0;
         }
 
+        /* --- Loading Screen Styles --- */
+        #authOverlay {
+            background: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+
+        .loader-container {
+            width: 300px;
+            background: rgba(0,0,0,0.5);
+            border: 4px solid var(--bg-med);
+            padding: 4px;
+            margin-top: 20px;
+            border-radius: 4px;
+        }
+
+        #loadingBar {
+            width: 0%;
+            height: 20px;
+            background: var(--yellow);
+            transition: width 0.3s ease;
+            box-shadow: 0 0 10px var(--yellow);
+        }
+
+        #loadingStatus {
+            font-size: 8px;
+            margin-top: 15px;
+            color: var(--secondary);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        /* --- UI Styles --- */
         canvas {
             image-rendering: pixelated;
             background-color: var(--bg-med);
             border: 4px solid #0f3460;
             border-radius: 8px;
-            box-shadow: 0 0 20px rgba(0,0,0,0.5);
-        }
-
-        .pixel-border {
-            border: 4px solid #0f3460;
-            image-rendering: pixelated;
+            box-shadow: 0 0 40px rgba(0,0,0,0.6);
         }
 
         .btn {
-            transition: transform 0.1s;
+            transition: all 0.2s;
             cursor: pointer;
+            border-bottom: 4px solid rgba(0,0,0,0.3);
         }
 
         .btn:active {
-            transform: scale(0.95);
+            transform: translateY(2px);
+            border-bottom-width: 2px;
         }
 
-        .loading-dots:after {
-            content: '.';
-            animation: dots 1s steps(5, end) infinite;
+        .pixel-card {
+            background-color: var(--bg-med);
+            border: 4px solid #0f3460;
+            box-shadow: 8px 8px 0px rgba(0,0,0,0.2);
         }
 
-        @keyframes dots {
-            0%, 20% { content: '.'; }
-            40% { content: '..'; }
-            60% { content: '...'; }
-            80%, 100% { content: ''; }
+        /* Animations */
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
         }
+        .pulse { animation: pulse 1.5s infinite; }
 
-        /* Custom Scrollbar */
         ::-webkit-scrollbar { width: 8px; }
         ::-webkit-scrollbar-track { background: #0f3460; }
-        ::-webkit-scrollbar-thumb { background: #e94560; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb { background: var(--accent); border-radius: 4px; }
     </style>
 </head>
 <body class="flex flex-col items-center justify-center min-h-screen p-4">
 
-    <!-- Auth / Initializing Overlay -->
-    <div id="authOverlay" class="fixed inset-0 z-[100] bg-[#1a1a2e] flex flex-col items-center justify-center text-center">
-        <h1 class="text-3xl text-yellow-400 mb-8">QUEST EXPLORER</h1>
-        <div class="loading-dots text-xl">Initializing Game</div>
+    <!-- Advanced Loading Screen -->
+    <div id="authOverlay" class="fixed inset-0">
+        <h1 class="text-3xl text-yellow-400 mb-2 tracking-tighter">QUEST EXPLORER</h1>
+        <p class="text-[8px] text-gray-400 mb-8 pulse">Establishing secure link...</p>
+        
+        <div class="loader-container">
+            <div id="loadingBar"></div>
+        </div>
+        <div id="loadingStatus">Awaiting system boot...</div>
+        <div id="loadingPercentage" class="mt-2 text-[10px] text-gray-500">0%</div>
     </div>
 
     <!-- Main Menu -->
     <div id="mainMenu" class="hidden flex flex-col items-center gap-6 max-w-md w-full">
-        <h1 class="text-2xl text-yellow-400 mb-4">MAIN MENU</h1>
+        <h1 class="text-2xl text-yellow-400 mb-4 drop-shadow-md">MAIN MENU</h1>
         
-        <div class="bg-[#16213e] p-6 rounded-xl border-4 border-[#0f3460] w-full">
-            <h2 class="text-xs mb-4 text-gray-400">YOUR IDENTITY</h2>
+        <div class="pixel-card p-6 rounded-xl w-full">
+            <h2 class="text-xs mb-4 text-gray-400">CHARACTER PROFILE</h2>
             <div class="flex items-center gap-4 mb-6">
-                <div id="playerPreview" class="w-12 h-12 rounded border-2 border-white"></div>
-                <input id="userNameInput" type="text" placeholder="Enter Name" maxlength="10" class="flex-1 bg-black/30 border-2 border-[#0f3460] p-2 text-[10px] outline-none focus:border-yellow-500">
+                <div id="playerPreview" class="w-14 h-14 rounded border-4 border-white/20 shadow-inner"></div>
+                <div class="flex-1">
+                    <input id="userNameInput" type="text" placeholder="GUEST_USER" maxlength="10" class="w-full bg-black/40 border-2 border-[#0f3460] p-3 text-[10px] outline-none focus:border-yellow-500 text-yellow-400">
+                </div>
             </div>
 
-            <button id="playSingleBtn" class="btn w-full bg-yellow-500 text-black hover:bg-yellow-600 p-4 rounded text-xs mb-6">PLAY SINGLEPLAYER</button>
+            <button id="playSingleBtn" class="btn w-full bg-yellow-500 text-black hover:bg-yellow-400 p-4 rounded text-xs mb-6 font-bold">SOLO MISSION</button>
             
-            <div class="border-t border-[#0f3460] pt-6">
-                <h2 class="text-xs mb-4 text-gray-400">MULTIPLAYER</h2>
-                <button id="createLobbyBtn" class="btn w-full bg-green-600 hover:bg-green-700 p-4 rounded text-xs mb-3">CREATE LOBBY</button>
+            <div class="border-t-2 border-[#0f3460] pt-6">
+                <h2 class="text-xs mb-4 text-gray-400">CO-OP NETWORKING</h2>
+                <button id="createLobbyBtn" class="btn w-full bg-emerald-600 hover:bg-emerald-500 p-4 rounded text-xs mb-3">HOST SERVER</button>
                 
                 <div class="flex gap-2">
-                    <input id="lobbyCodeInput" type="text" placeholder="CODE" maxlength="5" class="w-1/3 bg-black/30 border-2 border-[#0f3460] p-2 text-[10px] uppercase text-center outline-none focus:border-yellow-500">
-                    <button id="joinLobbyBtn" class="btn flex-1 bg-blue-600 hover:bg-blue-700 p-4 rounded text-xs">JOIN LOBBY</button>
+                    <input id="lobbyCodeInput" type="text" placeholder="CODE" maxlength="5" class="w-1/3 bg-black/40 border-2 border-[#0f3460] p-3 text-[10px] uppercase text-center outline-none focus:border-yellow-500">
+                    <button id="joinLobbyBtn" class="btn flex-1 bg-sky-600 hover:bg-sky-500 p-4 rounded text-xs">JOIN CODE</button>
                 </div>
             </div>
         </div>
 
-        <div class="text-[8px] text-gray-500 mt-4 leading-relaxed">
-            Move: WASD • Goal: Collect Gems • Sync: Cloud
+        <div class="text-[7px] text-gray-500 mt-4 text-center leading-loose">
+            CONTROL: [W][A][S][D] TO MOVE • [T] TO CHAT<br>
+            OBJECTIVE: RECOVER ALL GEMS IN SECTOR
         </div>
     </div>
 
     <!-- Lobby Screen -->
     <div id="lobbyScreen" class="hidden flex flex-col items-center gap-6 max-w-md w-full">
-        <h1 class="text-xl text-yellow-400">LOBBY: <span id="displayLobbyCode" class="text-white">-----</span></h1>
+        <h1 class="text-xl text-yellow-400">SECTOR: <span id="displayLobbyCode" class="text-white">-----</span></h1>
         
-        <div class="bg-[#16213e] p-6 rounded-xl border-4 border-[#0f3460] w-full min-h-[200px]">
-            <h2 class="text-xs mb-4 text-gray-400">PLAYERS WAITING</h2>
-            <div id="lobbyPlayerList" class="space-y-2">
-                <!-- Players injected here -->
-            </div>
+        <div class="pixel-card p-6 rounded-xl w-full min-h-[220px]">
+            <h2 class="text-xs mb-4 text-gray-400">TEAM ROSTER</h2>
+            <div id="lobbyPlayerList" class="space-y-3"></div>
         </div>
 
         <div class="flex gap-4 w-full">
-            <button id="backToMenuBtn" class="btn flex-1 bg-red-600 hover:bg-red-700 p-4 rounded text-[10px]">LEAVE</button>
-            <button id="startGameBtn" class="btn flex-1 bg-yellow-500 hover:bg-yellow-600 text-black p-4 rounded text-[10px] hidden">START GAME</button>
+            <button id="backToMenuBtn" class="btn flex-1 bg-rose-600 hover:bg-rose-500 p-4 rounded text-[10px]">ABORT</button>
+            <button id="startGameBtn" class="btn flex-1 bg-yellow-500 hover:bg-yellow-400 text-black p-4 rounded text-[10px] hidden font-bold">DEPART</button>
         </div>
     </div>
 
     <!-- Game Screen -->
     <div id="gameScreen" class="hidden flex flex-col items-center">
-        <div class="mb-4 flex justify-between w-full items-center px-2">
+        <div class="mb-4 flex justify-between w-full items-center px-4 bg-black/20 p-2 rounded-t-lg border-x-4 border-t-4 border-[#0f3460]">
             <div class="flex flex-col gap-1">
-                <div class="text-[8px] text-gray-400" id="lobbyInfoContainer">LOBBY: <span id="gameLobbyCode"></span></div>
-                <div class="text-[10px] text-yellow-400">GEMS: <span id="scoreDisplay">0</span></div>
+                <div class="text-[7px] text-gray-500" id="lobbyInfoContainer">SECTOR: <span id="gameLobbyCode" class="text-white"></span></div>
+                <div class="text-[10px] text-yellow-400">RESOURCES: <span id="scoreDisplay">0</span></div>
             </div>
             <div id="playerStats" class="flex gap-2"></div>
         </div>
@@ -131,23 +173,23 @@
         <div class="relative">
             <canvas id="gameCanvas"></canvas>
             
-            <!-- Chat Overlay -->
+            <!-- HUD / Chat -->
             <div id="chatOverlay" class="absolute bottom-4 left-4 right-4 pointer-events-none">
-                <div id="chatMessages" class="max-h-24 overflow-y-auto mb-2 flex flex-col gap-1 text-[8px]"></div>
+                <div id="chatMessages" class="max-h-24 overflow-y-auto mb-3 flex flex-col gap-1 text-[8px] bg-black/40 p-2 rounded"></div>
                 <div class="flex gap-2 pointer-events-auto">
-                    <input id="chatInput" type="text" placeholder="Press T to chat" class="flex-1 bg-black/60 border border-white/20 p-1 text-[8px] outline-none">
+                    <input id="chatInput" type="text" placeholder="TYPE MESSAGE..." class="flex-1 bg-black/80 border-2 border-white/10 p-2 text-[8px] outline-none focus:border-yellow-500">
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Modals -->
-    <div id="modalOverlay" class="fixed inset-0 bg-black/80 z-[200] hidden flex items-center justify-center p-6">
-        <div class="bg-[#16213e] border-4 border-yellow-500 p-8 rounded-xl text-center max-w-sm">
-            <div id="modalEmoji" class="text-5xl mb-4">🏆</div>
-            <h2 id="modalTitle" class="text-xl mb-4">WINNER!</h2>
-            <p id="modalBody" class="text-[10px] text-gray-300 mb-6 leading-relaxed"></p>
-            <button id="modalBtn" class="btn bg-yellow-500 text-black px-8 py-3 text-xs rounded">BACK TO MENU</button>
+    <!-- Win Modal -->
+    <div id="modalOverlay" class="fixed inset-0 bg-black/90 z-[200] hidden flex items-center justify-center p-6">
+        <div class="pixel-card border-yellow-500 p-10 rounded-xl text-center max-w-sm">
+            <div class="text-6xl mb-6">✨</div>
+            <h2 id="modalTitle" class="text-xl mb-4 text-yellow-400">MISSION SUCCESS</h2>
+            <p id="modalBody" class="text-[9px] text-gray-400 mb-8 leading-relaxed"></p>
+            <button id="modalBtn" class="btn bg-yellow-500 text-black px-10 py-4 text-xs rounded font-bold">RETURN TO BASE</button>
         </div>
     </div>
 
@@ -156,32 +198,75 @@
         import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, doc, setDoc, getDoc, updateDoc, onSnapshot, collection, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        // --- Firebase Setup ---
+        // --- Core Application State ---
         const firebaseConfig = JSON.parse(__firebase_config);
-        const app = initializeApp(firebaseConfig);
-        const auth = getAuth(app);
-        const db = getFirestore(app);
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'adventure-multiplayer';
-
-        // --- Game Logic Constants ---
-        const TILE_SIZE = 40;
-        const GRID_WIDTH = 15;
-        const GRID_HEIGHT = 12;
-        const MOVE_SPEED = 0.08; 
-
-        // --- State ---
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'quest-explorer-v2';
+        
+        let app, auth, db;
         let user = null;
         let currentLobby = null;
         let lobbyData = null;
         let isSinglePlayer = false;
         let unsubscribeLobby = null;
         let myPlayerColor = `#${Math.floor(Math.random()*16777215).toString(16)}`;
-        
+
+        const TILE_SIZE = 40;
+        const GRID_WIDTH = 15;
+        const GRID_HEIGHT = 12;
+        const MOVE_SPEED = 0.08; 
+
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
         canvas.width = TILE_SIZE * GRID_WIDTH;
         canvas.height = TILE_SIZE * GRID_HEIGHT;
 
+        // --- Helper: Smooth Loading Animation ---
+        const updateLoader = (percent, status) => {
+            const bar = document.getElementById('loadingBar');
+            const statusEl = document.getElementById('loadingStatus');
+            const percentEl = document.getElementById('loadingPercentage');
+            bar.style.width = percent + '%';
+            statusEl.innerText = status;
+            percentEl.innerText = Math.round(percent) + '%';
+        };
+
+        // --- Initialization Sequence (Rule 3) ---
+        const startApp = async () => {
+            try {
+                updateLoader(10, "Initializing Engines...");
+                app = initializeApp(firebaseConfig);
+                auth = getAuth(app);
+                db = getFirestore(app);
+                
+                updateLoader(30, "Connecting to Satellite...");
+                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                    await signInWithCustomToken(auth, __initial_auth_token);
+                } else {
+                    await signInAnonymously(auth);
+                }
+
+                updateLoader(60, "Verifying Identity...");
+                onAuthStateChanged(auth, async (u) => {
+                    user = u;
+                    if (user) {
+                        updateLoader(85, "Generating Sector Maps...");
+                        // Fake delay for "complexity" and visual effect
+                        setTimeout(() => {
+                            updateLoader(100, "System Ready");
+                            setTimeout(() => {
+                                document.getElementById('authOverlay').style.display = 'none';
+                                document.getElementById('mainMenu').classList.remove('hidden');
+                            }, 500);
+                        }, 800);
+                    }
+                });
+            } catch (err) {
+                updateLoader(0, "Connection Failed!");
+                console.error(err);
+            }
+        };
+
+        // --- Input Management ---
         const keys = {};
         window.addEventListener('keydown', e => {
             if (document.activeElement === document.getElementById('chatInput')) return;
@@ -193,9 +278,8 @@
         });
         window.addEventListener('keyup', e => keys[e.code] = false);
 
-        // --- UI Selectors ---
+        // --- UI Component Registry ---
         const ui = {
-            authOverlay: document.getElementById('authOverlay'),
             mainMenu: document.getElementById('mainMenu'),
             lobbyScreen: document.getElementById('lobbyScreen'),
             gameScreen: document.getElementById('gameScreen'),
@@ -210,35 +294,17 @@
 
         ui.playerPreview.style.backgroundColor = myPlayerColor;
 
-        const initAuth = async () => {
-            if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-                await signInWithCustomToken(auth, __initial_auth_token);
-            } else {
-                await signInAnonymously(auth);
-            }
-        };
-
-        onAuthStateChanged(auth, (u) => {
-            user = u;
-            if (user) {
-                ui.authOverlay.classList.add('hidden');
-                ui.mainMenu.classList.remove('hidden');
-            }
-        });
-
-        initAuth();
-
+        // --- Lobby Logic (Rule 1 & 2) ---
         const getLobbyDoc = (code) => doc(db, 'artifacts', appId, 'public', 'data', 'lobbies', code.toUpperCase());
 
-        // --- Lobby / Game Initiation ---
-        function generateMapData() {
+        function generateMap() {
             const walls = [];
             const gems = [];
             for (let y = 0; y < GRID_HEIGHT; y++) {
                 for (let x = 0; x < GRID_WIDTH; x++) {
                     if (x === 0 || x === GRID_WIDTH - 1 || y === 0 || y === GRID_HEIGHT - 1) walls.push({x, y});
-                    else if (Math.random() > 0.85) walls.push({x, y});
-                    else if (Math.random() > 0.94) gems.push({x, y, id: Math.random().toString(36).substr(2, 9)});
+                    else if (Math.random() > 0.88) walls.push({x, y});
+                    else if (Math.random() > 0.95) gems.push({x, y, id: Math.random().toString(36).substr(2, 9)});
                 }
             }
             return { walls, gems };
@@ -246,8 +312,8 @@
 
         async function startSinglePlayer() {
             isSinglePlayer = true;
-            const name = ui.userNameInput.value || "Solo Explorer";
-            const map = generateMapData();
+            const name = ui.userNameInput.value || "SOLO_UNIT";
+            const map = generateMap();
             
             lobbyData = {
                 status: 'playing',
@@ -255,13 +321,7 @@
                 gems: map.gems,
                 messages: [],
                 players: {
-                    "local": {
-                        id: "local",
-                        name,
-                        color: myPlayerColor,
-                        x: 1, y: 1, targetX: 1, targetY: 1,
-                        score: 0
-                    }
+                    "local": { id: "local", name, color: myPlayerColor, x: 1, y: 1, targetX: 1, targetY: 1, score: 0 }
                 }
             };
             
@@ -273,27 +333,17 @@
 
         async function createLobby() {
             if (!user) return;
-            isSinglePlayer = false;
             const code = Math.random().toString(36).substring(2, 7).toUpperCase();
-            const name = ui.userNameInput.value || "Explorer";
-            const map = generateMapData();
+            const name = ui.userNameInput.value || "COMMANDER";
+            const map = generateMap();
 
             const initialLobby = {
-                code,
-                hostId: user.uid,
-                status: 'waiting',
+                code, hostId: user.uid, status: 'waiting',
                 walls: JSON.stringify(map.walls),
                 gems: map.gems,
                 messages: [],
                 players: {
-                    [user.uid]: {
-                        id: user.uid,
-                        name,
-                        color: myPlayerColor,
-                        x: 1, y: 1, targetX: 1, targetY: 1,
-                        score: 0,
-                        lastSeen: Date.now()
-                    }
+                    [user.uid]: { id: user.uid, name, color: myPlayerColor, x: 1, y: 1, targetX: 1, targetY: 1, score: 0, lastSeen: Date.now() }
                 }
             };
 
@@ -308,21 +358,14 @@
             const snap = await getDoc(lobbyRef);
 
             if (!snap.exists()) {
-                alert("Lobby not found!");
+                alert("ERR: Sector not found!");
                 return;
             }
 
-            const name = ui.userNameInput.value || "Explorer";
+            const name = ui.userNameInput.value || "RECRUIT";
             const currentPlayers = snap.data().players || {};
             
-            currentPlayers[user.uid] = {
-                id: user.uid,
-                name,
-                color: myPlayerColor,
-                x: 1, y: 1, targetX: 1, targetY: 1,
-                score: 0,
-                lastSeen: Date.now()
-            };
+            currentPlayers[user.uid] = { id: user.uid, name, color: myPlayerColor, x: 1, y: 1, targetX: 1, targetY: 1, score: 0, lastSeen: Date.now() };
 
             await updateDoc(lobbyRef, { players: currentPlayers });
             startListening(code);
@@ -330,8 +373,6 @@
             ui.mainMenu.classList.add('hidden');
             ui.lobbyScreen.classList.remove('hidden');
             document.getElementById('displayLobbyCode').innerText = code;
-            document.getElementById('lobbyInfoContainer').classList.remove('hidden');
-            document.getElementById('chatOverlay').classList.remove('hidden');
         }
 
         function startListening(code) {
@@ -339,13 +380,10 @@
             currentLobby = code;
 
             unsubscribeLobby = onSnapshot(getLobbyDoc(code), (snap) => {
-                if (!snap.exists()) {
-                    exitLobby();
-                    return;
-                }
+                if (!snap.exists()) { exitLobby(); return; }
                 lobbyData = snap.data();
                 updateUI();
-            }, (err) => console.error("Snapshot error", err));
+            });
         }
 
         function updateUI() {
@@ -355,20 +393,18 @@
                 ui.playerList.innerHTML = '';
                 Object.values(lobbyData.players).forEach(p => {
                     const div = document.createElement('div');
-                    div.className = "flex items-center gap-3 p-2 bg-black/20 rounded text-[10px]";
-                    div.innerHTML = `<div class="w-4 h-4 rounded" style="background:${p.color}"></div><span>${p.name}</span> ${p.id === lobbyData.hostId ? '<span class="text-yellow-400 text-[8px]">[HOST]</span>' : ''}`;
+                    div.className = "flex items-center gap-3 p-3 bg-black/30 rounded border-l-4 border-yellow-500/20";
+                    div.innerHTML = `<div class="w-5 h-5 rounded shadow" style="background:${p.color}"></div><span class="text-[9px]">${p.name}</span> ${p.id === lobbyData.hostId ? '<span class="text-yellow-400 text-[7px] ml-auto">[HOST]</span>' : ''}`;
                     ui.playerList.appendChild(div);
                 });
 
-                if (user.uid === lobbyData.hostId) {
-                    document.getElementById('startGameBtn').classList.remove('hidden');
-                }
+                if (user.uid === lobbyData.hostId) document.getElementById('startGameBtn').classList.remove('hidden');
             }
 
             if (lobbyData.status === 'playing' && !ui.gameScreen.offsetParent) {
                 ui.lobbyScreen.classList.add('hidden');
                 ui.gameScreen.classList.remove('hidden');
-                document.getElementById('gameLobbyCode').innerText = lobbyData.code || "---";
+                document.getElementById('gameLobbyCode').innerText = lobbyData.code || "OFFLINE";
             }
 
             if (!isSinglePlayer) syncChat();
@@ -382,11 +418,8 @@
                 if (snap.exists()) {
                     const ps = snap.data().players;
                     delete ps[user.uid];
-                    if (Object.keys(ps).length === 0) {
-                        await deleteDoc(ref);
-                    } else {
-                        await updateDoc(ref, { players: ps });
-                    }
+                    if (Object.keys(ps).length === 0) await deleteDoc(ref);
+                    else await updateDoc(ref, { players: ps });
                 }
             }
             currentLobby = null;
@@ -396,43 +429,7 @@
             ui.mainMenu.classList.remove('hidden');
         }
 
-        async function startGame() {
-            if (currentLobby && lobbyData.hostId === user.uid) {
-                await updateDoc(getLobbyDoc(currentLobby), { status: 'playing' });
-            }
-        }
-
-        // --- Chat ---
-        async function sendMessage() {
-            if (isSinglePlayer) return;
-            const text = ui.chatInput.value.trim();
-            if (!text || !currentLobby) return;
-            ui.chatInput.value = '';
-            
-            const msgs = lobbyData.messages || [];
-            msgs.push({
-                sender: lobbyData.players[user.uid].name,
-                text: text,
-                time: Date.now()
-            });
-            
-            const limited = msgs.slice(-10);
-            await updateDoc(getLobbyDoc(currentLobby), { messages: limited });
-        }
-
-        function syncChat() {
-            if (!lobbyData.messages) return;
-            ui.chatMessages.innerHTML = '';
-            lobbyData.messages.forEach(m => {
-                const div = document.createElement('div');
-                div.className = "text-white";
-                div.innerHTML = `<span class="text-yellow-400">${m.sender}:</span> ${m.text}`;
-                ui.chatMessages.appendChild(div);
-            });
-            ui.chatMessages.scrollTop = ui.chatMessages.scrollHeight;
-        }
-
-        // --- Engine ---
+        // --- Game Engine Logic ---
         let lastUpdate = 0;
         function gameLoop() {
             if (lobbyData && lobbyData.status === 'playing') {
@@ -442,14 +439,13 @@
             requestAnimationFrame(gameLoop);
         }
 
-        async function updatePhysics() {
+        function updatePhysics() {
             const myId = isSinglePlayer ? "local" : user.uid;
             const me = lobbyData.players[myId];
             if (!me) return;
 
             if (me.x === me.targetX && me.y === me.targetY) {
-                let nx = me.targetX;
-                let ny = me.targetY;
+                let nx = me.targetX, ny = me.targetY;
                 if (keys['KeyW']) ny--;
                 else if (keys['KeyS']) ny++;
                 else if (keys['KeyA']) nx--;
@@ -473,10 +469,7 @@
             let collectedId = null;
             const newGems = (lobbyData.gems || []).filter(gem => {
                 const dist = Math.sqrt(Math.pow(me.x - gem.x, 2) + Math.pow(me.y - gem.y, 2));
-                if (dist < 0.5) {
-                    collectedId = gem.id;
-                    return false;
-                }
+                if (dist < 0.5) { collectedId = gem.id; return false; }
                 return true;
             });
 
@@ -494,27 +487,28 @@
                 lastUpdate = now;
             }
 
-            if (lobbyData.gems && lobbyData.gems.length === 0) {
-                showWin();
-            }
+            if (lobbyData.gems && lobbyData.gems.length === 0) showWin();
         }
 
         function drawGame() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             const walls = JSON.parse(lobbyData.walls);
 
+            // Walls (Grid)
             ctx.fillStyle = '#0f3460';
             walls.forEach(w => {
                 ctx.fillRect(w.x * TILE_SIZE, w.y * TILE_SIZE, TILE_SIZE - 2, TILE_SIZE - 2);
             });
 
+            // Gems (Collectibles)
             ctx.fillStyle = '#e94560';
             (lobbyData.gems || []).forEach(gem => {
                 ctx.beginPath();
-                ctx.arc(gem.x * TILE_SIZE + TILE_SIZE/2, gem.y * TILE_SIZE + TILE_SIZE/2, 6, 0, Math.PI * 2);
+                ctx.arc(gem.x * TILE_SIZE + TILE_SIZE/2, gem.y * TILE_SIZE + TILE_SIZE/2, 7, 0, Math.PI * 2);
                 ctx.fill();
             });
 
+            // Players (Entities)
             let totalScore = 0;
             Object.values(lobbyData.players).forEach(p => {
                 totalScore += p.score;
@@ -524,8 +518,9 @@
                 ctx.fillStyle = 'white';
                 ctx.font = '6px "Press Start 2P"';
                 ctx.textAlign = 'center';
-                ctx.fillText(p.name, p.x * TILE_SIZE + TILE_SIZE/2, p.y * TILE_SIZE - 4);
+                ctx.fillText(p.name, p.x * TILE_SIZE + TILE_SIZE/2, p.y * TILE_SIZE - 6);
                 
+                // Entity Features (Eyes)
                 ctx.fillRect(p.x * TILE_SIZE + 12, p.y * TILE_SIZE + 14, 4, 4);
                 ctx.fillRect(p.x * TILE_SIZE + 24, p.y * TILE_SIZE + 14, 4, 4);
             });
@@ -533,31 +528,45 @@
             document.getElementById('scoreDisplay').innerText = totalScore;
         }
 
+        // --- Interaction Handlers ---
+        async function sendMessage() {
+            if (isSinglePlayer) return;
+            const text = ui.chatInput.value.trim();
+            if (!text || !currentLobby) return;
+            ui.chatInput.value = '';
+            const msgs = (lobbyData.messages || []).concat({ sender: lobbyData.players[user.uid].name, text, time: Date.now() }).slice(-12);
+            await updateDoc(getLobbyDoc(currentLobby), { messages: msgs });
+        }
+
+        function syncChat() {
+            if (!lobbyData.messages) return;
+            ui.chatMessages.innerHTML = lobbyData.messages.map(m => `<div><span class="text-yellow-400">${m.sender}:</span> ${m.text}</div>`).join('');
+            ui.chatMessages.scrollTop = ui.chatMessages.scrollHeight;
+        }
+
         function showWin() {
             const myId = isSinglePlayer ? "local" : user.uid;
             const p = lobbyData.players[myId];
-            document.getElementById('modalTitle').innerText = "QUEST COMPLETE!";
-            document.getElementById('modalBody').innerText = `You collected all gems! Total score: ${p.score} points.`;
+            document.getElementById('modalBody').innerText = `SECTOR SECURED. RESOURCES RECOVERED: ${p.score} UNITS. ALL TEAM MEMBERS SAFE.`;
             ui.modal.classList.remove('hidden');
         }
 
-        // --- Listeners ---
+        // --- UI Events ---
         document.getElementById('playSingleBtn').onclick = startSinglePlayer;
         document.getElementById('createLobbyBtn').onclick = createLobby;
         document.getElementById('joinLobbyBtn').onclick = () => {
             const code = ui.lobbyCodeInput.value.trim().toUpperCase();
             if (code) joinLobby(code);
         };
-        document.getElementById('startGameBtn').onclick = startGame;
+        document.getElementById('startGameBtn').onclick = async () => {
+            if (currentLobby && lobbyData.hostId === user.uid) await updateDoc(getLobbyDoc(currentLobby), { status: 'playing' });
+        };
         document.getElementById('backToMenuBtn').onclick = exitLobby;
-        document.getElementById('modalBtn').onclick = () => {
-            ui.modal.classList.add('hidden');
-            exitLobby();
-        };
-        ui.chatInput.onkeydown = (e) => {
-            if (e.key === 'Enter') sendMessage();
-        };
+        document.getElementById('modalBtn').onclick = () => { ui.modal.classList.add('hidden'); exitLobby(); };
+        ui.chatInput.onkeydown = (e) => { if (e.key === 'Enter') sendMessage(); };
 
+        // Start Bootup
+        startApp();
         gameLoop();
     </script>
 </body>
