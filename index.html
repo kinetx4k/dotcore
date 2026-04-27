@@ -3,16 +3,17 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Tron Multiplayer</title>
+    <title>Tron Multiplayer Pro</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
         
         :root {
-            --bg-dark: #0a0a12;
-            --bg-med: #1a1a2e;
+            --bg-dark: #05050a;
+            --bg-med: #0a0a1a;
             --neon-blue: #00f2ff;
             --neon-pink: #ff00ea;
+            --grid-line: #1a1a3a;
         }
 
         body {
@@ -27,23 +28,29 @@
         canvas {
             image-rendering: pixelated;
             background-color: #000;
-            border: 4px solid #1a1a2e;
-            box-shadow: 0 0 20px rgba(0, 242, 255, 0.2);
+            border: 4px solid #1a1a3a;
+            box-shadow: 0 0 30px rgba(0, 242, 255, 0.1);
         }
 
         .pixel-panel {
             background-color: var(--bg-med);
-            border: 4px solid #0f3460;
-            box-shadow: 6px 6px 0px rgba(0,0,0,0.5);
+            border: 4px solid #1a1a3a;
+            box-shadow: 8px 8px 0px rgba(0,0,0,0.8);
         }
 
         .btn {
-            background: #0f3460;
+            background: #1a1a3a;
             color: white;
-            padding: 12px;
-            border-bottom: 4px solid #0a0a12;
+            padding: 14px;
+            border-bottom: 4px solid #000;
             transition: all 0.1s;
             cursor: pointer;
+            text-transform: uppercase;
+        }
+
+        .btn:hover {
+            background: #2a2a4a;
+            color: var(--neon-blue);
         }
 
         .btn:active {
@@ -53,72 +60,128 @@
 
         .neon-text {
             text-shadow: 0 0 10px var(--neon-blue);
+            color: var(--neon-blue);
+        }
+
+        .neon-text-pink {
+            text-shadow: 0 0 10px var(--neon-pink);
+            color: var(--neon-pink);
+        }
+
+        /* Scanline effect */
+        .scanlines {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.1) 50%), 
+                        linear-gradient(90deg, rgba(255, 0, 0, 0.02), rgba(0, 255, 0, 0.01), rgba(0, 0, 255, 0.02));
+            z-index: 10;
+            background-size: 100% 2px, 3px 100%;
+            pointer-events: none;
+        }
+
+        #ui-layer {
+            z-index: 20;
+            position: relative;
         }
     </style>
 </head>
 <body class="flex flex-col items-center justify-center min-h-screen p-4">
+    <div class="scanlines"></div>
 
-    <!-- Menu -->
-    <div id="menu" class="flex flex-col items-center gap-6 w-full max-w-md">
-        <h1 class="text-3xl neon-text mb-4">TRON.NET</h1>
+    <div id="ui-layer" class="w-full max-w-lg flex flex-col items-center">
         
-        <div class="pixel-panel p-6 w-full flex flex-col gap-4">
-            <input id="lobbyInput" type="text" placeholder="ENTER CODE" maxlength="5" class="bg-black border-2 border-[#0f3460] p-3 text-center text-xs outline-none focus:border-cyan-400">
-            <div class="flex gap-2">
-                <button id="joinBtn" class="btn flex-1 text-[10px]">JOIN GAME</button>
-                <button id="createBtn" class="btn flex-1 text-[10px]">CREATE LOBBY</button>
+        <!-- Menu -->
+        <div id="menu" class="flex flex-col items-center gap-8 w-full">
+            <div class="text-center">
+                <h1 class="text-4xl neon-text mb-2 italic">TRON</h1>
+                <p class="text-[10px] tracking-widest text-gray-500">DIGITAL FRONTIER MULTIPLAYER</p>
+            </div>
+            
+            <div class="pixel-panel p-8 w-full flex flex-col gap-6">
+                <div class="flex flex-col gap-2">
+                    <label class="text-[8px] text-gray-400">ACCESS CODE</label>
+                    <input id="lobbyInput" type="text" placeholder="------" maxlength="6" class="bg-black border-2 border-[#1a1a3a] p-4 text-center text-sm outline-none focus:border-cyan-400 uppercase tracking-widest text-white">
+                </div>
+                <div class="flex flex-col gap-3">
+                    <button id="joinBtn" class="btn text-[10px]">Initialize Link</button>
+                    <button id="createBtn" class="btn text-[10px] bg-gray-900">Create New Sector</button>
+                </div>
             </div>
         </div>
-    </div>
 
-    <!-- Lobby -->
-    <div id="lobby" class="hidden flex flex-col items-center gap-6 w-full max-w-md">
-        <h2 class="text-xl">LOBBY: <span id="lobbyCodeLabel" class="text-cyan-400"></span></h2>
-        <div class="pixel-panel p-6 w-full min-h-[150px]">
-            <div id="playerList" class="flex flex-col gap-2 text-[10px]">
-                <!-- Players -->
+        <!-- Lobby -->
+        <div id="lobby" class="hidden flex flex-col items-center gap-6 w-full">
+            <h2 class="text-xl">SECTOR: <span id="lobbyCodeLabel" class="neon-text"></span></h2>
+            <div class="pixel-panel p-6 w-full min-h-[200px]">
+                <h3 class="text-[8px] mb-4 text-gray-500 uppercase tracking-widest">Connected Programs</h3>
+                <div id="playerList" class="flex flex-col gap-4 text-[10px]">
+                    <!-- Players -->
+                </div>
+            </div>
+            <div class="flex flex-col gap-3 w-full">
+                <button id="startBtn" class="btn w-full text-xs hidden neon-text">Begin Simulation</button>
+                <button id="leaveBtn" class="btn w-full text-xs bg-red-900/20 text-red-500 border-red-900">Abort Link</button>
             </div>
         </div>
-        <button id="startBtn" class="btn w-full text-xs hidden">START INITIALIZATION</button>
-    </div>
 
-    <!-- Game -->
-    <div id="gameUI" class="hidden flex flex-col items-center gap-4">
-        <div class="flex justify-between w-full text-[8px] text-gray-400 px-2">
-            <span>CODE: <span id="gameCodeLabel"></span></span>
-            <span id="gameStatusLabel">WAITING...</span>
+        <!-- Game UI -->
+        <div id="gameUI" class="hidden flex flex-col items-center gap-4">
+            <div class="flex justify-between w-full text-[8px] text-gray-400 px-2 uppercase tracking-tighter">
+                <div class="flex flex-col gap-1">
+                    <span>Sector: <span id="gameCodeLabel" class="text-white"></span></span>
+                    <span id="gameStatusLabel" class="neon-text">Awaiting Input...</span>
+                </div>
+                <div class="text-right">
+                    <span>Latency: <span id="pingLabel" class="text-green-500">LOW</span></span>
+                </div>
+            </div>
+            <div class="relative">
+                <canvas id="stage"></canvas>
+                <div id="countdown" class="absolute inset-0 flex items-center justify-center text-6xl neon-text pointer-events-none hidden">3</div>
+            </div>
         </div>
-        <canvas id="stage"></canvas>
+
+        <!-- Result Screen -->
+        <div id="resultScreen" class="hidden fixed inset-0 flex items-center justify-center bg-black/80 z-[100] p-6">
+            <div class="pixel-panel p-10 max-w-sm w-full text-center">
+                <h2 id="winnerText" class="text-2xl mb-6 neon-text">VICTORY</h2>
+                <p id="winnerSub" class="text-[10px] text-gray-500 mb-8 leading-relaxed">Program has successfully out-maneuvered the competition.</p>
+                <button id="backToLobbyBtn" class="btn w-full text-[10px]">Return to Sector</button>
+            </div>
+        </div>
     </div>
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, doc, setDoc, onSnapshot, updateDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getFirestore, doc, setDoc, onSnapshot, updateDoc, getDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        // Firebase Setup
+        // Firebase Configuration
         const firebaseConfig = JSON.parse(__firebase_config);
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const db = getFirestore(app);
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'tron-multiplayer';
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'tron-ultimate-multiplayer';
 
-        const TILE_SIZE = 10;
+        // Constants
+        const TILE_SIZE = 12;
         const GRID_SIZE = 40;
         const canvas = document.getElementById('stage');
         const ctx = canvas.getContext('2d');
         canvas.width = GRID_SIZE * TILE_SIZE;
         canvas.height = GRID_SIZE * TILE_SIZE;
 
+        // Game State
         let user = null;
         let currentLobby = null;
         let lobbyData = null;
         let myDir = { x: 1, y: 0 };
         let nextDir = { x: 1, y: 0 };
         let lastTick = 0;
-        const TICK_RATE = 150; // Moderate speed
+        let particles = [];
+        const TICK_RATE = 150; // User likes it "not too fast"
 
-        // Rule 3: Auth First
+        // Auth Logic
         onAuthStateChanged(auth, (u) => {
             user = u;
             if (!user) signInAnonymously(auth);
@@ -126,16 +189,24 @@
 
         const getLobbyRef = (code) => doc(db, 'artifacts', appId, 'public', 'data', 'lobbies', code);
 
+        // --- Functions ---
+
         async function createLobby() {
             if (!user) return;
-            const code = Math.random().toString(36).substring(2, 7).toUpperCase();
+            const code = Math.random().toString(36).substring(2, 8).toUpperCase();
             const ref = getLobbyRef(code);
             const initial = {
                 code,
                 hostId: user.uid,
                 status: 'waiting',
+                countdown: 0,
                 players: {
-                    [user.uid]: { id: user.uid, x: 5, y: 20, dir: { x: 1, y: 0 }, alive: true, trail: [], color: '#00f2ff' }
+                    [user.uid]: { 
+                        id: user.uid, x: 5, y: 20, 
+                        dir: { x: 1, y: 0 }, 
+                        alive: true, trail: [], 
+                        color: '#00f2ff', name: 'USER_1' 
+                    }
                 }
             };
             await setDoc(ref, initial);
@@ -144,22 +215,43 @@
 
         async function joinLobby(code) {
             code = code.toUpperCase();
+            if (code.length !== 6) return;
             const ref = getLobbyRef(code);
             currentLobby = code;
 
             onSnapshot(ref, (snap) => {
-                if (!snap.exists()) return;
+                if (!snap.exists()) {
+                    window.location.reload();
+                    return;
+                }
                 lobbyData = snap.data();
                 renderLobby();
-                if (lobbyData.status === 'playing') startGameUI();
-            });
+                handleGameState();
+            }, (err) => console.error("Snapshot error:", err));
 
-            // Add self if not host
-            const snap = await (await import("https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js")).getDoc(ref);
-            if (snap.exists() && snap.data().hostId !== user.uid) {
-                const ps = snap.data().players;
-                ps[user.uid] = { id: user.uid, x: 35, y: 20, dir: { x: -1, y: 0 }, alive: true, trail: [], color: '#ff00ea' };
-                await updateDoc(ref, { players: ps });
+            // Join existing lobby
+            const snap = await getDoc(ref);
+            if (snap.exists()) {
+                const data = snap.data();
+                if (data.status !== 'waiting' && !data.players[user.uid]) {
+                    alert("Simulation in progress. Connection refused.");
+                    return;
+                }
+                if (!data.players[user.uid]) {
+                    const ps = data.players;
+                    const pCount = Object.keys(ps).length;
+                    ps[user.uid] = { 
+                        id: user.uid, x: 34, y: 20, 
+                        dir: { x: -1, y: 0 }, 
+                        alive: true, trail: [], 
+                        color: pCount === 1 ? '#ff00ea' : (pCount === 2 ? '#ffcc00' : '#00ff00'),
+                        name: `USER_${pCount + 1}` 
+                    };
+                    await updateDoc(ref, { players: ps });
+                }
+            } else {
+                alert("Sector code invalid.");
+                return;
             }
 
             document.getElementById('menu').classList.add('hidden');
@@ -172,64 +264,138 @@
             list.innerHTML = '';
             Object.values(lobbyData.players).forEach(p => {
                 const div = document.createElement('div');
-                div.innerText = `> PLAYER_${p.id.substring(0, 4)} [READY]`;
+                div.className = "flex items-center gap-4";
+                div.innerHTML = `
+                    <div class="w-3 h-3" style="background:${p.color}; box-shadow: 0 0 10px ${p.color}"></div>
+                    <span class="${p.id === user.uid ? 'text-white' : 'text-gray-400'}">${p.name}</span>
+                    ${p.id === lobbyData.hostId ? '<span class="text-[6px] bg-cyan-900 px-1">HOST</span>' : ''}
+                `;
                 list.appendChild(div);
             });
-            if (user.uid === lobbyData.hostId && Object.keys(lobbyData.players).length >= 2) {
-                document.getElementById('startBtn').classList.remove('hidden');
+            
+            const startBtn = document.getElementById('startBtn');
+            if (user.uid === lobbyData.hostId && Object.keys(lobbyData.players).length >= 1) {
+                startBtn.classList.remove('hidden');
+            } else {
+                startBtn.classList.add('hidden');
             }
         }
 
-        function startGameUI() {
-            document.getElementById('lobby').classList.add('hidden');
-            document.getElementById('gameUI').classList.remove('hidden');
-            document.getElementById('gameCodeLabel').innerText = currentLobby;
-            requestAnimationFrame(gameLoop);
+        function handleGameState() {
+            const countdownEl = document.getElementById('countdown');
+            
+            if (lobbyData.status === 'countdown') {
+                document.getElementById('lobby').classList.add('hidden');
+                document.getElementById('gameUI').classList.remove('hidden');
+                document.getElementById('gameCodeLabel').innerText = currentLobby;
+                countdownEl.classList.remove('hidden');
+                countdownEl.innerText = lobbyData.countdown;
+            } else if (lobbyData.status === 'playing') {
+                document.getElementById('lobby').classList.add('hidden');
+                document.getElementById('gameUI').classList.remove('hidden');
+                countdownEl.classList.add('hidden');
+                document.getElementById('gameStatusLabel').innerText = "ENGAGED";
+                requestAnimationFrame(gameLoop);
+            } else if (lobbyData.status === 'finished') {
+                showResults();
+            }
         }
 
-        // Input
+        function showResults() {
+            const screen = document.getElementById('resultScreen');
+            const winnerText = document.getElementById('winnerText');
+            const alivePlayers = Object.values(lobbyData.players).filter(p => p.alive);
+            
+            screen.classList.remove('hidden');
+            if (alivePlayers.length === 1) {
+                const winner = alivePlayers[0];
+                winnerText.innerText = winner.id === user.uid ? "VICTORY" : "DEFEAT";
+                winnerText.className = winner.id === user.uid ? "text-2xl mb-6 neon-text" : "text-2xl mb-6 neon-text-pink";
+                document.getElementById('winnerSub').innerText = `${winner.name} IS THE LAST PROGRAM REMAINING.`;
+            } else {
+                winnerText.innerText = "DRAW";
+                document.getElementById('winnerSub').innerText = "NO PROGRAMS SURVIVED THE COLLISION.";
+            }
+        }
+
+        // --- Logic Engine ---
+
         window.addEventListener('keydown', (e) => {
-            if (e.key === 'w' || e.key === 'ArrowUp') if (myDir.y === 0) nextDir = { x: 0, y: -1 };
-            if (e.key === 's' || e.key === 'ArrowDown') if (myDir.y === 0) nextDir = { x: 0, y: 1 };
-            if (e.key === 'a' || e.key === 'ArrowLeft') if (myDir.x === 0) nextDir = { x: -1, y: 0 };
-            if (e.key === 'd' || e.key === 'ArrowRight') if (myDir.x === 0) nextDir = { x: 1, y: 0 };
+            const key = e.key.toLowerCase();
+            if (key === 'w' || e.key === 'ArrowUp') { if (myDir.y === 0) nextDir = { x: 0, y: -1 }; }
+            if (key === 's' || e.key === 'ArrowDown') { if (myDir.y === 0) nextDir = { x: 0, y: 1 }; }
+            if (key === 'a' || e.key === 'ArrowLeft') { if (myDir.x === 0) nextDir = { x: -1, y: 0 }; }
+            if (key === 'd' || e.key === 'ArrowRight') { if (myDir.x === 0) nextDir = { x: 1, y: 0 }; }
         });
 
         async function tick() {
             if (!lobbyData || lobbyData.status !== 'playing') return;
             const me = lobbyData.players[user.uid];
-            if (!me.alive) return;
+            if (!me || !me.alive) return;
 
             myDir = nextDir;
             const newX = me.x + myDir.x;
             const newY = me.y + myDir.y;
 
-            // Collision check
             let alive = true;
+            // Out of bounds
             if (newX < 0 || newX >= GRID_SIZE || newY < 0 || newY >= GRID_SIZE) alive = false;
             
-            // Trail collision
+            // Wall/Trail collision
             Object.values(lobbyData.players).forEach(p => {
+                // Check trails
                 if (p.trail.some(t => t.x === newX && t.y === newY)) alive = false;
-                if (p.x === newX && p.y === newY) alive = false;
+                // Check heads (prevent same-tile overlap)
+                if (p.id !== user.uid && p.alive && p.x === newX && p.y === newY) alive = false;
+                // Check self trail head (safety)
+                if (me.trail.length > 0 && me.x === newX && me.y === newY) alive = false;
             });
 
             const newTrail = [...me.trail, { x: me.x, y: me.y }];
-            
-            const ps = lobbyData.players;
-            ps[user.uid] = { ...me, x: newX, y: newY, trail: newTrail, alive };
-            
-            await updateDoc(getLobbyRef(currentLobby), { players: ps });
-            
-            if (!alive) document.getElementById('gameStatusLabel').innerText = "DISCONNECTED / CRASHED";
+            const updatedPlayers = { ...lobbyData.players };
+            updatedPlayers[user.uid] = { ...me, x: newX, y: newY, trail: newTrail, alive, dir: myDir };
+
+            // Check if game should end (only host evaluates end condition)
+            let newStatus = 'playing';
+            if (user.uid === lobbyData.hostId) {
+                const currentlyAlive = Object.values(updatedPlayers).filter(p => p.alive);
+                if (currentlyAlive.length <= 1 && Object.keys(updatedPlayers).length > 1) {
+                    newStatus = 'finished';
+                } else if (currentlyAlive.length === 0) {
+                    newStatus = 'finished';
+                }
+            }
+
+            if (!alive) {
+                createExplosion(me.x * TILE_SIZE, me.y * TILE_SIZE, me.color);
+                document.getElementById('gameStatusLabel').innerText = "DEREZZED";
+            }
+
+            await updateDoc(getLobbyRef(currentLobby), { 
+                players: updatedPlayers,
+                status: newStatus 
+            });
+        }
+
+        function createExplosion(x, y, color) {
+            for (let i = 0; i < 20; i++) {
+                particles.push({
+                    x: x + TILE_SIZE / 2,
+                    y: y + TILE_SIZE / 2,
+                    vx: (Math.random() - 0.5) * 6,
+                    vy: (Math.random() - 0.5) * 6,
+                    life: 1.0,
+                    color: color
+                });
+            }
         }
 
         function draw() {
+            // Background & Grid
             ctx.fillStyle = '#000';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-            // Grid
-            ctx.strokeStyle = '#111';
+            ctx.strokeStyle = '#050515';
+            ctx.lineWidth = 1;
             for (let i = 0; i < GRID_SIZE; i++) {
                 ctx.beginPath(); ctx.moveTo(i * TILE_SIZE, 0); ctx.lineTo(i * TILE_SIZE, canvas.height); ctx.stroke();
                 ctx.beginPath(); ctx.moveTo(0, i * TILE_SIZE); ctx.lineTo(canvas.width, i * TILE_SIZE); ctx.stroke();
@@ -237,20 +403,43 @@
 
             if (!lobbyData) return;
 
+            // Trail Logic
             Object.values(lobbyData.players).forEach(p => {
-                ctx.fillStyle = p.color;
-                // Trail
-                p.trail.forEach(t => {
-                    ctx.globalAlpha = 0.4;
-                    ctx.fillRect(t.x * TILE_SIZE, t.y * TILE_SIZE, TILE_SIZE, TILE_SIZE);
-                });
-                // Head
-                ctx.globalAlpha = 1.0;
-                if (p.alive) {
-                    ctx.shadowBlur = 10; ctx.shadowColor = p.color;
-                    ctx.fillRect(p.x * TILE_SIZE, p.y * TILE_SIZE, TILE_SIZE, TILE_SIZE);
-                    ctx.shadowBlur = 0;
+                ctx.strokeStyle = p.color;
+                ctx.lineWidth = 3;
+                ctx.lineCap = 'round';
+                ctx.shadowBlur = 15;
+                ctx.shadowColor = p.color;
+
+                if (p.trail.length > 0) {
+                    ctx.beginPath();
+                    ctx.moveTo(p.trail[0].x * TILE_SIZE + TILE_SIZE / 2, p.trail[0].y * TILE_SIZE + TILE_SIZE / 2);
+                    p.trail.forEach(t => {
+                        ctx.lineTo(t.x * TILE_SIZE + TILE_SIZE / 2, t.y * TILE_SIZE + TILE_SIZE / 2);
+                    });
+                    ctx.lineTo(p.x * TILE_SIZE + TILE_SIZE / 2, p.y * TILE_SIZE + TILE_SIZE / 2);
+                    ctx.stroke();
                 }
+
+                // Head rendering
+                if (p.alive) {
+                    ctx.fillStyle = '#fff';
+                    ctx.shadowBlur = 20;
+                    ctx.fillRect(p.x * TILE_SIZE + 2, p.y * TILE_SIZE + 2, TILE_SIZE - 4, TILE_SIZE - 4);
+                }
+                ctx.shadowBlur = 0;
+            });
+
+            // Particles
+            particles = particles.filter(p => {
+                p.x += p.vx;
+                p.y += p.vy;
+                p.life -= 0.02;
+                ctx.globalAlpha = p.life;
+                ctx.fillStyle = p.color;
+                ctx.fillRect(p.x, p.y, 2, 2);
+                ctx.globalAlpha = 1.0;
+                return p.life > 0;
             });
         }
 
@@ -260,17 +449,65 @@
                 lastTick = now;
             }
             draw();
-            requestAnimationFrame(gameLoop);
+            if (lobbyData && (lobbyData.status === 'playing' || lobbyData.status === 'finished')) {
+                requestAnimationFrame(gameLoop);
+            }
         }
 
-        // Listeners
+        // --- Interface Listeners ---
+
         document.getElementById('createBtn').onclick = createLobby;
+        
         document.getElementById('joinBtn').onclick = () => {
-            const val = document.getElementById('lobbyInput').value;
+            const val = document.getElementById('lobbyInput').value.trim();
             if (val) joinLobby(val);
         };
+
+        document.getElementById('leaveBtn').onclick = async () => {
+            if (currentLobby && user) {
+                const ref = getLobbyRef(currentLobby);
+                const snap = await getDoc(ref);
+                if (snap.exists()) {
+                    const ps = snap.data().players;
+                    delete ps[user.uid];
+                    if (Object.keys(ps).length === 0) await deleteDoc(ref);
+                    else await updateDoc(ref, { players: ps });
+                }
+            }
+            window.location.reload();
+        };
+
         document.getElementById('startBtn').onclick = async () => {
-            await updateDoc(getLobbyRef(currentLobby), { status: 'playing' });
+            if (user.uid !== lobbyData.hostId) return;
+            
+            // Start countdown
+            const ref = getLobbyRef(currentLobby);
+            for (let i = 3; i >= 0; i--) {
+                await updateDoc(ref, { 
+                    status: i === 0 ? 'playing' : 'countdown', 
+                    countdown: i 
+                });
+                if (i > 0) await new Promise(r => setTimeout(r, 1000));
+            }
+        };
+
+        document.getElementById('backToLobbyBtn').onclick = async () => {
+            const ref = getLobbyRef(currentLobby);
+            if (user.uid === lobbyData.hostId) {
+                const ps = lobbyData.players;
+                // Reset players for new match
+                Object.keys(ps).forEach((id, idx) => {
+                    ps[id].alive = true;
+                    ps[id].trail = [];
+                    ps[id].x = idx === 0 ? 5 : 34;
+                    ps[id].y = 20;
+                    ps[id].dir = idx === 0 ? {x:1,y:0} : {x:-1,y:0};
+                });
+                await updateDoc(ref, { status: 'waiting', players: ps });
+            }
+            document.getElementById('resultScreen').classList.add('hidden');
+            document.getElementById('gameUI').classList.add('hidden');
+            document.getElementById('lobby').classList.remove('hidden');
         };
 
     </script>
