@@ -69,12 +69,12 @@
     <!-- Auth / Initializing Overlay -->
     <div id="authOverlay" class="fixed inset-0 z-[100] bg-[#1a1a2e] flex flex-col items-center justify-center text-center">
         <h1 class="text-3xl text-yellow-400 mb-8">QUEST EXPLORER</h1>
-        <div class="loading-dots text-xl">Initializing Multiplayer</div>
+        <div class="loading-dots text-xl">Initializing Game</div>
     </div>
 
     <!-- Main Menu -->
     <div id="mainMenu" class="hidden flex flex-col items-center gap-6 max-w-md w-full">
-        <h1 class="text-2xl text-yellow-400 mb-4">MULTIPLAYER</h1>
+        <h1 class="text-2xl text-yellow-400 mb-4">MAIN MENU</h1>
         
         <div class="bg-[#16213e] p-6 rounded-xl border-4 border-[#0f3460] w-full">
             <h2 class="text-xs mb-4 text-gray-400">YOUR IDENTITY</h2>
@@ -83,16 +83,21 @@
                 <input id="userNameInput" type="text" placeholder="Enter Name" maxlength="10" class="flex-1 bg-black/30 border-2 border-[#0f3460] p-2 text-[10px] outline-none focus:border-yellow-500">
             </div>
 
-            <button id="createLobbyBtn" class="btn w-full bg-green-600 hover:bg-green-700 p-4 rounded text-xs mb-3">CREATE LOBBY</button>
+            <button id="playSingleBtn" class="btn w-full bg-yellow-500 text-black hover:bg-yellow-600 p-4 rounded text-xs mb-6">PLAY SINGLEPLAYER</button>
             
-            <div class="flex gap-2">
-                <input id="lobbyCodeInput" type="text" placeholder="CODE" maxlength="5" class="w-1/3 bg-black/30 border-2 border-[#0f3460] p-2 text-[10px] uppercase text-center outline-none focus:border-yellow-500">
-                <button id="joinLobbyBtn" class="btn flex-1 bg-blue-600 hover:bg-blue-700 p-4 rounded text-xs">JOIN LOBBY</button>
+            <div class="border-t border-[#0f3460] pt-6">
+                <h2 class="text-xs mb-4 text-gray-400">MULTIPLAYER</h2>
+                <button id="createLobbyBtn" class="btn w-full bg-green-600 hover:bg-green-700 p-4 rounded text-xs mb-3">CREATE LOBBY</button>
+                
+                <div class="flex gap-2">
+                    <input id="lobbyCodeInput" type="text" placeholder="CODE" maxlength="5" class="w-1/3 bg-black/30 border-2 border-[#0f3460] p-2 text-[10px] uppercase text-center outline-none focus:border-yellow-500">
+                    <button id="joinLobbyBtn" class="btn flex-1 bg-blue-600 hover:bg-blue-700 p-4 rounded text-xs">JOIN LOBBY</button>
+                </div>
             </div>
         </div>
 
         <div class="text-[8px] text-gray-500 mt-4 leading-relaxed">
-            Move: WASD • Goal: Collect Gems together • Multiplayer synced via Cloud
+            Move: WASD • Goal: Collect Gems • Sync: Cloud
         </div>
     </div>
 
@@ -117,7 +122,7 @@
     <div id="gameScreen" class="hidden flex flex-col items-center">
         <div class="mb-4 flex justify-between w-full items-center px-2">
             <div class="flex flex-col gap-1">
-                <div class="text-[8px] text-gray-400">LOBBY: <span id="gameLobbyCode"></span></div>
+                <div class="text-[8px] text-gray-400" id="lobbyInfoContainer">LOBBY: <span id="gameLobbyCode"></span></div>
                 <div class="text-[10px] text-yellow-400">GEMS: <span id="scoreDisplay">0</span></div>
             </div>
             <div id="playerStats" class="flex gap-2"></div>
@@ -127,7 +132,7 @@
             <canvas id="gameCanvas"></canvas>
             
             <!-- Chat Overlay -->
-            <div class="absolute bottom-4 left-4 right-4 pointer-events-none">
+            <div id="chatOverlay" class="absolute bottom-4 left-4 right-4 pointer-events-none">
                 <div id="chatMessages" class="max-h-24 overflow-y-auto mb-2 flex flex-col gap-1 text-[8px]"></div>
                 <div class="flex gap-2 pointer-events-auto">
                     <input id="chatInput" type="text" placeholder="Press T to chat" class="flex-1 bg-black/60 border border-white/20 p-1 text-[8px] outline-none">
@@ -142,7 +147,7 @@
             <div id="modalEmoji" class="text-5xl mb-4">🏆</div>
             <h2 id="modalTitle" class="text-xl mb-4">WINNER!</h2>
             <p id="modalBody" class="text-[10px] text-gray-300 mb-6 leading-relaxed"></p>
-            <button id="modalBtn" class="btn bg-yellow-500 text-black px-8 py-3 text-xs rounded">BACK TO LOBBY</button>
+            <button id="modalBtn" class="btn bg-yellow-500 text-black px-8 py-3 text-xs rounded">BACK TO MENU</button>
         </div>
     </div>
 
@@ -162,12 +167,13 @@
         const TILE_SIZE = 40;
         const GRID_WIDTH = 15;
         const GRID_HEIGHT = 12;
-        const MOVE_SPEED = 0.08; // Slow as requested
+        const MOVE_SPEED = 0.08; 
 
         // --- State ---
         let user = null;
         let currentLobby = null;
         let lobbyData = null;
+        let isSinglePlayer = false;
         let unsubscribeLobby = null;
         let myPlayerColor = `#${Math.floor(Math.random()*16777215).toString(16)}`;
         
@@ -204,7 +210,6 @@
 
         ui.playerPreview.style.backgroundColor = myPlayerColor;
 
-        // --- Initial Auth (Rule 3) ---
         const initAuth = async () => {
             if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
                 await signInWithCustomToken(auth, __initial_auth_token);
@@ -218,22 +223,15 @@
             if (user) {
                 ui.authOverlay.classList.add('hidden');
                 ui.mainMenu.classList.remove('hidden');
-                // Recovery logic if needed
             }
         });
 
         initAuth();
 
-        // --- Firebase Paths (Rule 1) ---
         const getLobbyDoc = (code) => doc(db, 'artifacts', appId, 'public', 'data', 'lobbies', code.toUpperCase());
 
-        // --- Lobby Operations ---
-        async function createLobby() {
-            if (!user) return;
-            const code = Math.random().toString(36).substring(2, 7).toUpperCase();
-            const name = ui.userNameInput.value || "Explorer";
-            
-            // Generate Map
+        // --- Lobby / Game Initiation ---
+        function generateMapData() {
             const walls = [];
             const gems = [];
             for (let y = 0; y < GRID_HEIGHT; y++) {
@@ -243,13 +241,49 @@
                     else if (Math.random() > 0.94) gems.push({x, y, id: Math.random().toString(36).substr(2, 9)});
                 }
             }
+            return { walls, gems };
+        }
+
+        async function startSinglePlayer() {
+            isSinglePlayer = true;
+            const name = ui.userNameInput.value || "Solo Explorer";
+            const map = generateMapData();
+            
+            lobbyData = {
+                status: 'playing',
+                walls: JSON.stringify(map.walls),
+                gems: map.gems,
+                messages: [],
+                players: {
+                    "local": {
+                        id: "local",
+                        name,
+                        color: myPlayerColor,
+                        x: 1, y: 1, targetX: 1, targetY: 1,
+                        score: 0
+                    }
+                }
+            };
+            
+            ui.mainMenu.classList.add('hidden');
+            ui.gameScreen.classList.remove('hidden');
+            document.getElementById('lobbyInfoContainer').classList.add('hidden');
+            document.getElementById('chatOverlay').classList.add('hidden');
+        }
+
+        async function createLobby() {
+            if (!user) return;
+            isSinglePlayer = false;
+            const code = Math.random().toString(36).substring(2, 7).toUpperCase();
+            const name = ui.userNameInput.value || "Explorer";
+            const map = generateMapData();
 
             const initialLobby = {
                 code,
                 hostId: user.uid,
                 status: 'waiting',
-                walls: JSON.stringify(walls),
-                gems: gems,
+                walls: JSON.stringify(map.walls),
+                gems: map.gems,
                 messages: [],
                 players: {
                     [user.uid]: {
@@ -269,6 +303,7 @@
 
         async function joinLobby(code) {
             if (!user) return;
+            isSinglePlayer = false;
             const lobbyRef = getLobbyDoc(code);
             const snap = await getDoc(lobbyRef);
 
@@ -280,7 +315,6 @@
             const name = ui.userNameInput.value || "Explorer";
             const currentPlayers = snap.data().players || {};
             
-            // Add self
             currentPlayers[user.uid] = {
                 id: user.uid,
                 name,
@@ -296,6 +330,8 @@
             ui.mainMenu.classList.add('hidden');
             ui.lobbyScreen.classList.remove('hidden');
             document.getElementById('displayLobbyCode').innerText = code;
+            document.getElementById('lobbyInfoContainer').classList.remove('hidden');
+            document.getElementById('chatOverlay').classList.remove('hidden');
         }
 
         function startListening(code) {
@@ -315,7 +351,6 @@
         function updateUI() {
             if (!lobbyData) return;
 
-            // Lobby Player List
             if (ui.lobbyScreen.offsetParent) {
                 ui.playerList.innerHTML = '';
                 Object.values(lobbyData.players).forEach(p => {
@@ -330,20 +365,18 @@
                 }
             }
 
-            // Game Start
             if (lobbyData.status === 'playing' && !ui.gameScreen.offsetParent) {
                 ui.lobbyScreen.classList.add('hidden');
                 ui.gameScreen.classList.remove('hidden');
-                document.getElementById('gameLobbyCode').innerText = lobbyData.code;
+                document.getElementById('gameLobbyCode').innerText = lobbyData.code || "---";
             }
 
-            // Sync Messages
-            syncChat();
+            if (!isSinglePlayer) syncChat();
         }
 
         async function exitLobby() {
             if (unsubscribeLobby) unsubscribeLobby();
-            if (currentLobby && user) {
+            if (!isSinglePlayer && currentLobby && user) {
                 const ref = getLobbyDoc(currentLobby);
                 const snap = await getDoc(ref);
                 if (snap.exists()) {
@@ -357,6 +390,7 @@
                 }
             }
             currentLobby = null;
+            isSinglePlayer = false;
             ui.lobbyScreen.classList.add('hidden');
             ui.gameScreen.classList.add('hidden');
             ui.mainMenu.classList.remove('hidden');
@@ -368,8 +402,9 @@
             }
         }
 
-        // --- Chat Logic ---
+        // --- Chat ---
         async function sendMessage() {
+            if (isSinglePlayer) return;
             const text = ui.chatInput.value.trim();
             if (!text || !currentLobby) return;
             ui.chatInput.value = '';
@@ -381,7 +416,6 @@
                 time: Date.now()
             });
             
-            // Keep last 10 messages
             const limited = msgs.slice(-10);
             await updateDoc(getLobbyDoc(currentLobby), { messages: limited });
         }
@@ -398,7 +432,7 @@
             ui.chatMessages.scrollTop = ui.chatMessages.scrollHeight;
         }
 
-        // --- Game Engine ---
+        // --- Engine ---
         let lastUpdate = 0;
         function gameLoop() {
             if (lobbyData && lobbyData.status === 'playing') {
@@ -409,10 +443,10 @@
         }
 
         async function updatePhysics() {
-            const me = lobbyData.players[user.uid];
+            const myId = isSinglePlayer ? "local" : user.uid;
+            const me = lobbyData.players[myId];
             if (!me) return;
 
-            // Move Input
             if (me.x === me.targetX && me.y === me.targetY) {
                 let nx = me.targetX;
                 let ny = me.targetY;
@@ -430,14 +464,12 @@
                 }
             }
 
-            // Interpolation
             me.x += (me.targetX - me.x) * MOVE_SPEED;
             me.y += (me.targetY - me.y) * MOVE_SPEED;
 
             if (Math.abs(me.x - me.targetX) < 0.01) me.x = me.targetX;
             if (Math.abs(me.y - me.targetY) < 0.01) me.y = me.targetY;
 
-            // Gem Collection
             let collectedId = null;
             const newGems = (lobbyData.gems || []).filter(gem => {
                 const dist = Math.sqrt(Math.pow(me.x - gem.x, 2) + Math.pow(me.y - gem.y, 2));
@@ -448,15 +480,16 @@
                 return true;
             });
 
-            // Network Sync (Throttle to ~10hz)
+            if (collectedId) {
+                me.score += 10;
+                lobbyData.gems = newGems;
+            }
+
             const now = Date.now();
-            if (now - lastUpdate > 100 || collectedId) {
+            if (!isSinglePlayer && (now - lastUpdate > 100 || collectedId)) {
                 const ref = getLobbyDoc(currentLobby);
                 const updateObj = { [`players.${user.uid}`]: me };
-                if (collectedId) {
-                    me.score += 10;
-                    updateObj.gems = newGems;
-                }
+                if (collectedId) updateObj.gems = newGems;
                 updateDoc(ref, updateObj);
                 lastUpdate = now;
             }
@@ -470,40 +503,29 @@
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             const walls = JSON.parse(lobbyData.walls);
 
-            // Walls
             ctx.fillStyle = '#0f3460';
             walls.forEach(w => {
                 ctx.fillRect(w.x * TILE_SIZE, w.y * TILE_SIZE, TILE_SIZE - 2, TILE_SIZE - 2);
             });
 
-            // Gems
             ctx.fillStyle = '#e94560';
             (lobbyData.gems || []).forEach(gem => {
                 ctx.beginPath();
                 ctx.arc(gem.x * TILE_SIZE + TILE_SIZE/2, gem.y * TILE_SIZE + TILE_SIZE/2, 6, 0, Math.PI * 2);
                 ctx.fill();
-                // Glow
-                ctx.shadowBlur = 10;
-                ctx.shadowColor = '#e94560';
-                ctx.stroke();
-                ctx.shadowBlur = 0;
             });
 
-            // Players
             let totalScore = 0;
             Object.values(lobbyData.players).forEach(p => {
                 totalScore += p.score;
                 ctx.fillStyle = p.color;
                 ctx.fillRect(p.x * TILE_SIZE + 6, p.y * TILE_SIZE + 6, TILE_SIZE - 12, TILE_SIZE - 12);
                 
-                // Name Tag
                 ctx.fillStyle = 'white';
                 ctx.font = '6px "Press Start 2P"';
                 ctx.textAlign = 'center';
                 ctx.fillText(p.name, p.x * TILE_SIZE + TILE_SIZE/2, p.y * TILE_SIZE - 4);
-
-                // Eyes
-                ctx.fillStyle = 'white';
+                
                 ctx.fillRect(p.x * TILE_SIZE + 12, p.y * TILE_SIZE + 14, 4, 4);
                 ctx.fillRect(p.x * TILE_SIZE + 24, p.y * TILE_SIZE + 14, 4, 4);
             });
@@ -512,13 +534,15 @@
         }
 
         function showWin() {
-            const p = lobbyData.players[user.uid];
+            const myId = isSinglePlayer ? "local" : user.uid;
+            const p = lobbyData.players[myId];
             document.getElementById('modalTitle').innerText = "QUEST COMPLETE!";
-            document.getElementById('modalBody').innerText = `Your team collected all gems! You contributed ${p.score} points.`;
+            document.getElementById('modalBody').innerText = `You collected all gems! Total score: ${p.score} points.`;
             ui.modal.classList.remove('hidden');
         }
 
-        // --- Event Listeners ---
+        // --- Listeners ---
+        document.getElementById('playSingleBtn').onclick = startSinglePlayer;
         document.getElementById('createLobbyBtn').onclick = createLobby;
         document.getElementById('joinLobbyBtn').onclick = () => {
             const code = ui.lobbyCodeInput.value.trim().toUpperCase();
