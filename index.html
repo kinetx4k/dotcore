@@ -30,63 +30,9 @@
             z-index: 10;
         }
 
-        .menu-overlay {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.9);
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            color: white;
-            z-index: 100;
-            transition: opacity 0.5s;
-        }
-
         .hidden {
             display: none !important;
             opacity: 0;
-        }
-
-        .level-grid {
-            display: grid;
-            grid-template-columns: repeat(5, 1fr);
-            gap: 15px;
-            margin-top: 20px;
-            pointer-events: auto;
-        }
-
-        .level-btn {
-            width: 50px;
-            height: 50px;
-            background: #222;
-            border: 2px solid #444;
-            color: #888;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-            border-radius: 8px;
-            transition: all 0.3s;
-        }
-
-        .level-btn.unlocked {
-            border-color: #00FF00;
-            color: #fff;
-            background: #113311;
-        }
-
-        .level-btn.unlocked:hover {
-            background: #00FF00;
-            color: #000;
-        }
-
-        .level-btn.locked {
-            cursor: not-allowed;
-            opacity: 0.5;
         }
 
         #message-box {
@@ -139,14 +85,6 @@
         <div id="status-text" style="font-size: 0.8rem; color: #666; margin-top: 5px;">Saving progress...</div>
     </div>
 
-    <!-- Main Menu / Level Selection -->
-    <div id="menu-overlay" class="menu-overlay">
-        <h1>DARK MAZE</h1>
-        <p>Select a Level</p>
-        <div id="level-grid" class="level-grid"></div>
-        <button class="btn-main" id="close-menu-btn">Back to Game</button>
-    </div>
-
     <div id="ability-bar"></div>
 
     <div id="message-box" class="hidden">
@@ -196,25 +134,20 @@
         let sonarCooldown = 0;
         let wallAlphaState = [];
 
-        // Maze Generation Data
-        let gridSize = { cols: 0, rows: 0 };
-        let cellSize = 0;
-
         /**
          * Maze Generation Algorithm (Recursive Backtracker)
          */
         function generateMaze(level) {
-            // Level 1 starts at 4x4, gets bigger
             const complexity = 4 + Math.floor(level / 2);
             const cols = complexity;
             const rows = complexity;
             
-            const mazeGrid = Array.from({ length: rows }, () => Array(cols).fill(true)); // true = wall
+            const mazeGrid = Array.from({ length: rows }, () => Array(cols).fill(true));
             const visited = Array.from({ length: rows }, () => Array(cols).fill(false));
 
             function carve(r, c) {
                 visited[r][c] = true;
-                mazeGrid[r][c] = false; // path
+                mazeGrid[r][c] = false;
 
                 const dirs = [[0, 1], [0, -1], [1, 0], [-1, 0]].sort(() => Math.random() - 0.5);
 
@@ -222,7 +155,6 @@
                     const nr = r + dr;
                     const nc = c + dc;
                     if (nr >= 0 && nr < rows && nc >= 0 && nc < cols && !visited[nr][nc]) {
-                        // Check neighbors to ensure it's a single path
                         let neighbors = 0;
                         if (nr > 0 && !mazeGrid[nr-1][nc]) neighbors++;
                         if (nr < rows-1 && !mazeGrid[nr+1][nc]) neighbors++;
@@ -236,10 +168,9 @@
                 }
             }
 
-            carve(0, 0); // Start at top left
-            mazeGrid[rows-1][cols-1] = false; // Force path at goal
+            carve(0, 0);
+            mazeGrid[rows-1][cols-1] = false;
             
-            // Convert grid to wall rectangles
             const w = canvas.width / cols;
             const h = canvas.height / rows;
             const newWalls = [];
@@ -257,14 +188,11 @@
                 }
             }
 
-            // Ensure Start and Goal areas are clean
             return newWalls.filter(wall => {
-                // Circle-Rect collision for Start
                 const startX = Math.max(wall.x, Math.min(startZone.x, wall.x + wall.w));
                 const startY = Math.max(wall.y, Math.min(startZone.y, wall.y + wall.h));
                 const startDist = Math.hypot(startZone.x - startX, startZone.y - startY);
                 
-                // Goal area check
                 const goalXPos = canvas.width - 60;
                 const goalYPos = canvas.height - 60;
                 const goalX = Math.max(wall.x, Math.min(goalXPos, wall.x + wall.w));
@@ -297,28 +225,10 @@
                 const snap = await getDoc(docRef);
                 if (snap.exists()) {
                     highestUnlocked = snap.data().highestUnlocked || 1;
+                    currentLevel = highestUnlocked;
                 }
-                updateLevelGrid();
             } catch (e) {
                 console.error("Load error", e);
-            }
-        }
-
-        function updateLevelGrid() {
-            const grid = document.getElementById('level-grid');
-            grid.innerHTML = '';
-            for (let i = 1; i <= 20; i++) {
-                const btn = document.createElement('div');
-                btn.className = `level-btn ${i <= highestUnlocked ? 'unlocked' : 'locked'}`;
-                btn.innerText = i;
-                if (i <= highestUnlocked) {
-                    btn.onclick = () => {
-                        currentLevel = i;
-                        document.getElementById('menu-overlay').classList.add('hidden');
-                        setupLevel();
-                    };
-                }
-                grid.appendChild(btn);
             }
         }
 
@@ -409,7 +319,6 @@
             ctx.fillStyle = '#000';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-            // Start Area
             if (isDead) {
                 ctx.beginPath();
                 ctx.arc(startZone.x, startZone.y, startZone.radius, 0, Math.PI * 2);
@@ -418,7 +327,6 @@
                 ctx.stroke();
                 ctx.setLineDash([]);
                 
-                // Direction Arrow
                 const dx = startZone.x - mousePos.x;
                 const dy = startZone.y - mousePos.y;
                 const angle = Math.atan2(dy, dx);
@@ -432,7 +340,6 @@
                 ctx.restore();
             }
 
-            // Sonar Effect
             if (sonarActive) {
                 ctx.beginPath();
                 ctx.arc(mousePos.x, mousePos.y, sonarRadius, 0, Math.PI * 2);
@@ -441,7 +348,6 @@
                 ctx.stroke();
             }
 
-            // Walls
             walls.forEach((w, i) => {
                 const alpha = levelCleared ? 0.2 : wallAlphaState[i];
                 if (alpha > 0) {
@@ -453,7 +359,6 @@
                 }
             });
 
-            // Splats
             ctx.fillStyle = SPLAT_COLOR;
             splats.forEach(s => {
                 ctx.beginPath();
@@ -461,7 +366,6 @@
                 ctx.fill();
             });
 
-            // Goal
             ctx.fillStyle = GOAL_COLOR;
             ctx.shadowBlur = levelCleared ? 0 : 20;
             ctx.shadowColor = GOAL_COLOR;
@@ -470,7 +374,6 @@
             ctx.fill();
             ctx.shadowBlur = 0;
 
-            // Cursor
             ctx.fillStyle = isDead ? '#444' : '#fff';
             ctx.beginPath();
             ctx.arc(mousePos.x, mousePos.y, 5, 0, Math.PI * 2);
@@ -480,7 +383,6 @@
             requestAnimationFrame(draw);
         }
 
-        // Interaction
         window.addEventListener('mousemove', e => {
             mousePos.x = e.clientX;
             mousePos.y = e.clientY;
@@ -495,18 +397,6 @@
             }
         });
 
-        // Level Select Hotkey
-        window.addEventListener('keydown', e => {
-            if (e.key === 'Escape' || e.key === 'm') {
-                document.getElementById('menu-overlay').classList.toggle('hidden');
-                updateLevelGrid();
-            }
-        });
-
-        document.getElementById('close-menu-btn').onclick = () => {
-            document.getElementById('menu-overlay').classList.add('hidden');
-        };
-
         document.getElementById('msg-btn').onclick = () => {
             document.getElementById('message-box').classList.add('hidden');
         };
@@ -517,7 +407,6 @@
             setupLevel();
         });
 
-        // Initialize Firebase & Start
         (async () => {
             document.getElementById('status-text').innerText = "Connecting...";
             try {
