@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dark Maze - Procedural</title>
+    <title>Dark Maze - Procedural Darkness</title>
     <style>
         body, html {
             margin: 0;
@@ -27,12 +27,6 @@
             color: white;
             pointer-events: none;
             user-select: none;
-            z-index: 10;
-        }
-
-        .hidden {
-            display: none !important;
-            opacity: 0;
         }
 
         #message-box {
@@ -42,40 +36,38 @@
             transform: translate(-50%, -50%);
             background: rgba(0, 0, 0, 0.85);
             color: white;
-            padding: 30px;
+            padding: 20px 40px;
             border: 2px solid #333;
-            border-radius: 15px;
+            border-radius: 10px;
             text-align: center;
-            z-index: 50;
-            pointer-events: auto;
+            transition: opacity 0.5s;
+            z-index: 100;
+        }
+
+        .hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        #level-indicator {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #444;
         }
 
         #ability-bar {
             position: absolute;
-            bottom: 30px;
+            bottom: 20px;
             left: 50%;
             transform: translateX(-50%);
             color: white;
+            font-size: 1rem;
             text-align: center;
             pointer-events: none;
-            background: rgba(0,0,0,0.5);
-            padding: 10px 20px;
-            border-radius: 20px;
         }
 
-        .sonar-ready { color: #00FF00; font-weight: bold; text-shadow: 0 0 10px #00FF00; }
-        .sonar-charging { color: #ff4444; }
-        
-        .btn-main {
-            margin-top: 20px;
-            padding: 10px 25px;
-            background: #4CAF50;
-            border: none;
-            color: white;
-            border-radius: 5px;
-            cursor: pointer;
-            font-size: 1rem;
-        }
+        .sonar-ready { color: #00FF00; font-weight: bold; }
+        .sonar-charging { color: #666; }
     </style>
 </head>
 <body>
@@ -86,187 +78,199 @@
 
     <div id="ability-bar"></div>
 
-    <div id="message-box" class="hidden">
-        <div id="msg-content"></div>
-        <button class="btn-main" id="msg-btn">Continue</button>
+    <div id="message-box">
+        <div id="tutorial">
+            <h2>Welcome to the Darkness</h2>
+            <p>The maze is now <strong>randomly generated</strong>.</p>
+            <p>Sonar cooldown is now <strong>10 seconds</strong>.</p>
+            <p style="color: #4CAF50;">Move to the top-left circle to start.</p>
+        </div>
     </div>
 
     <canvas id="gameCanvas"></canvas>
 
-    <script type="module">
-        // Constants & Config
+    <script>
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
-        const SONAR_COOLDOWN_TIME = 600; // 10 seconds at 60fps
-        const SONAR_MAX_RADIUS = 1000;
-        const SONAR_SPEED = 12;
-        const SPLAT_COLOR = 'rgba(200, 0, 0, 0.8)';
-        const GOAL_COLOR = '#00FF00';
+        const levelIndicator = document.getElementById('level-indicator');
+        const messageBox = document.getElementById('message-box');
+        const abilityBar = document.getElementById('ability-bar');
 
-        // Game State
-        let currentLevel = 1;
-        let isDead = true;
+        let currentLevel = 0;
+        let isDead = false;
         let gameStarted = false;
-        let levelCleared = false;
-        let mousePos = { x: 50, y: 50 };
-        let splats = [];
-        let walls = [];
-        let goal = { x: 0, y: 0, radius: 20 };
-        let startZone = { x: 60, y: 60, radius: 45 };
-        
-        // Sonar
+        let levelCleared = false; 
+        let mousePos = { x: 0, y: 0 };
+        let splats = []; 
+        let walls = []; 
+        let goal = { x: 0, y: 0, radius: 15 };
+        let startZone = { x: 50, y: 50, radius: 40 };
+
+        let sonarUnlocked = true;
         let sonarActive = false;
         let sonarRadius = 0;
         let sonarCooldown = 0;
+        const SONAR_MAX_RADIUS = 1000;
+        const SONAR_SPEED = 12;
+        const SONAR_COOLDOWN_TIME = 600; // 10 seconds at 60fps
         let wallAlphaState = [];
 
+        const SPLAT_RADIUS = 8;
+        const GOAL_COLOR = '#00FF00';
+        const SPLAT_COLOR = 'rgba(200, 0, 0, 0.7)';
+
         /**
-         * Maze Generation Algorithm (Recursive Backtracker)
+         * COMPLEX MAZE GENERATOR
+         * Uses Recursive Backtracking to ensure a solvable path.
          */
-        function generateMaze(level) {
-            const complexity = 4 + Math.floor(level / 2);
-            const cols = complexity;
-            const rows = complexity;
-            
-            const mazeGrid = Array.from({ length: rows }, () => Array(cols).fill(true));
-            const visited = Array.from({ length: rows }, () => Array(cols).fill(false));
-
-            function carve(r, c) {
-                visited[r][c] = true;
-                mazeGrid[r][c] = false;
-
-                const dirs = [[0, 1], [0, -1], [1, 0], [-1, 0]].sort(() => Math.random() - 0.5);
-
-                for (const [dr, dc] of dirs) {
-                    const nr = r + dr;
-                    const nc = c + dc;
-                    if (nr >= 0 && nr < rows && nc >= 0 && nc < cols && !visited[nr][nc]) {
-                        let neighbors = 0;
-                        if (nr > 0 && !mazeGrid[nr-1][nc]) neighbors++;
-                        if (nr < rows-1 && !mazeGrid[nr+1][nc]) neighbors++;
-                        if (nc > 0 && !mazeGrid[nr][nc-1]) neighbors++;
-                        if (nc < cols-1 && !mazeGrid[nr][nc+1]) neighbors++;
-
-                        if (neighbors <= 1) {
-                            carve(nr, nc);
-                        }
+        class MazeGenerator {
+            constructor(cols, rows) {
+                this.cols = cols;
+                this.rows = rows;
+                this.grid = [];
+                for (let r = 0; r < rows; r++) {
+                    this.grid[r] = [];
+                    for (let c = 0; c < cols; c++) {
+                        this.grid[r][c] = { r, c, visited: false, walls: [true, true, true, true] }; // Top, Right, Bottom, Left
                     }
                 }
             }
 
-            carve(0, 0);
-            mazeGrid[rows-1][cols-1] = false;
-            
-            const w = canvas.width / cols;
-            const h = canvas.height / rows;
-            const newWalls = [];
+            generate() {
+                const stack = [];
+                const start = this.grid[0][0];
+                start.visited = true;
+                stack.push(start);
 
-            for (let r = 0; r < rows; r++) {
-                for (let c = 0; c < cols; c++) {
-                    if (mazeGrid[r][c]) {
-                        newWalls.push({
-                            x: c * w,
-                            y: r * h,
-                            w: w,
-                            h: h
-                        });
+                while (stack.length > 0) {
+                    const current = stack.pop();
+                    const neighbors = this.getNeighbors(current);
+
+                    if (neighbors.length > 0) {
+                        stack.push(current);
+                        const next = neighbors[Math.floor(Math.random() * neighbors.length)];
+                        this.removeWalls(current, next);
+                        next.visited = true;
+                        stack.push(next);
                     }
                 }
+                return this.convertToRects();
             }
 
-            return newWalls.filter(wall => {
-                const startX = Math.max(wall.x, Math.min(startZone.x, wall.x + wall.w));
-                const startY = Math.max(wall.y, Math.min(startZone.y, wall.y + wall.h));
-                const startDist = Math.hypot(startZone.x - startX, startZone.y - startY);
-                
-                const goalXPos = canvas.width - 60;
-                const goalYPos = canvas.height - 60;
-                const goalX = Math.max(wall.x, Math.min(goalXPos, wall.x + wall.w));
-                const goalY = Math.max(wall.y, Math.min(goalYPos, wall.y + wall.h));
-                const goalDist = Math.hypot(goalXPos - goalX, goalYPos - goalY);
+            getNeighbors(cell) {
+                const neighbors = [];
+                const { r, c } = cell;
+                if (r > 0 && !this.grid[r - 1][c].visited) neighbors.push(this.grid[r - 1][c]);
+                if (r < this.rows - 1 && !this.grid[r + 1][c].visited) neighbors.push(this.grid[r + 1][c]);
+                if (c > 0 && !this.grid[r][c - 1].visited) neighbors.push(this.grid[r][c - 1]);
+                if (c < this.cols - 1 && !this.grid[r][c + 1].visited) neighbors.push(this.grid[r][c + 1]);
+                return neighbors;
+            }
 
-                return startDist > startZone.radius && goalDist > 60;
-            });
+            removeWalls(a, b) {
+                const dr = a.r - b.r;
+                const dc = a.c - b.c;
+                if (dr === 1) { a.walls[0] = false; b.walls[2] = false; }
+                else if (dr === -1) { a.walls[2] = false; b.walls[0] = false; }
+                if (dc === 1) { a.walls[3] = false; b.walls[1] = false; }
+                else if (dc === -1) { a.walls[1] = false; b.walls[3] = false; }
+            }
+
+            convertToRects() {
+                const rects = [];
+                const cellW = canvas.width / this.cols;
+                const cellH = canvas.height / this.rows;
+                const thickness = 10 + (currentLevel * 2);
+
+                for (let r = 0; r < this.rows; r++) {
+                    for (let c = 0; c < this.cols; c++) {
+                        const cell = this.grid[r][c];
+                        const x = c * cellW;
+                        const y = r * cellH;
+                        if (cell.walls[0]) rects.push({ x, y, w: cellW, h: thickness }); // Top
+                        if (cell.walls[1]) rects.push({ x: x + cellW - thickness, y, w: thickness, h: cellH }); // Right
+                        if (cell.walls[2]) rects.push({ x, y: y + cellH - thickness, w: cellW, h: thickness }); // Bottom
+                        if (cell.walls[3]) rects.push({ x, y, w: thickness, h: cellH }); // Left
+                    }
+                }
+                return rects;
+            }
+        }
+
+        function resize() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            setupLevel();
         }
 
         function setupLevel() {
-            document.getElementById('level-indicator').innerText = `Level ${currentLevel}`;
-            walls = generateMaze(currentLevel);
-            wallAlphaState = walls.map(() => 0);
-            goal.x = canvas.width - 60;
-            goal.y = canvas.height - 60;
-            splats = [];
-            levelCleared = false;
-            resetMouse("Level Start");
-        }
+            levelIndicator.innerText = `Level ${currentLevel + 1}: Procedural Chaos`;
+            
+            // Scaling difficulty: more rows and columns per level
+            const complexity = 4 + currentLevel;
+            const generator = new MazeGenerator(Math.floor(complexity * 1.5), complexity);
+            const allWalls = generator.generate();
 
-        function resetMouse(msg) {
-            isDead = true;
-            sonarActive = false;
-            const content = document.getElementById('msg-content');
-            if (msg === "Level Start") {
-                content.innerHTML = `<h2>Level ${currentLevel}</h2><p>Move to the start circle (top left) to begin.</p>`;
-            } else if (levelCleared) {
-                content.innerHTML = `<h2>Level Complete!</h2><p>Excellent memory. Move back to the start to advance.</p>`;
-            } else {
-                content.innerHTML = `<h2>You Died!</h2><p>The darkness claimed you. Return to the start circle.</p>`;
-            }
-            document.getElementById('message-box').classList.remove('hidden');
+            // Clear space around start and goal
+            walls = allWalls.filter(w => {
+                const distToStart = Math.hypot((w.x + w.w/2) - startZone.x, (w.y + w.h/2) - startZone.y);
+                const distToGoal = Math.hypot((w.x + w.w/2) - (canvas.width - 50), (w.y + w.h/2) - (canvas.height - 50));
+                return distToStart > 80 && distToGoal > 80;
+            });
+
+            wallAlphaState = walls.map(() => 0);
+            goal.x = canvas.width - 50;
+            goal.y = canvas.height - 50;
         }
 
         function checkCollision(x, y) {
             for (let wall of walls) {
                 if (x > wall.x && x < wall.x + wall.w && y > wall.y && y < wall.y + wall.h) return true;
             }
-            const b = 3;
-            if (x < b || x > canvas.width - b || y < b || y > canvas.height - b) return true;
-            return false;
+            const b = 2;
+            return (x <= b || x >= canvas.width - b || y <= b || y >= canvas.height - b);
         }
 
         function update() {
             if (sonarCooldown > 0) {
                 sonarCooldown--;
-                const bar = document.getElementById('ability-bar');
-                if (sonarCooldown === 0) {
-                    bar.innerHTML = '<span class="sonar-ready">Sonar Ready [Right Click]</span>';
-                } else {
-                    const sec = Math.ceil(sonarCooldown / 60);
-                    bar.innerHTML = `<span class="sonar-charging">Sonar Recharging: ${sec}s</span>`;
-                }
+                const percent = Math.floor((1 - sonarCooldown / SONAR_COOLDOWN_TIME) * 100);
+                abilityBar.innerHTML = `<span class="sonar-charging">Sonar Recharging: ${percent}%</span>`;
+                if (sonarCooldown === 0) abilityBar.innerHTML = '<span class="sonar-ready">Sonar Ready: [Right Click]</span>';
             }
 
             if (sonarActive) {
                 sonarRadius += SONAR_SPEED;
                 if (sonarRadius > SONAR_MAX_RADIUS) sonarActive = false;
-                walls.forEach((w, i) => {
-                    const cx = Math.max(w.x, Math.min(mousePos.x, w.x + w.w));
-                    const cy = Math.max(w.y, Math.min(mousePos.y, w.y + w.h));
-                    if (Math.abs(Math.hypot(mousePos.x - cx, mousePos.y - cy) - sonarRadius) < 30) {
-                        wallAlphaState[i] = 1.0;
-                    }
-                });
             }
 
-            wallAlphaState = wallAlphaState.map(a => Math.max(0, a - 0.012));
+            for (let i = 0; i < wallAlphaState.length; i++) {
+                if (wallAlphaState[i] > 0) wallAlphaState[i] -= 0.01;
+            }
 
             if (isDead) {
-                const dist = Math.hypot(mousePos.x - startZone.x, mousePos.y - startZone.y);
-                if (dist < startZone.radius) {
+                if (Math.hypot(mousePos.x - startZone.x, mousePos.y - startZone.y) < startZone.radius) {
                     if (levelCleared) {
                         currentLevel++;
+                        splats = [];
                         setupLevel();
+                        levelCleared = false;
                     }
                     isDead = false;
-                    document.getElementById('message-box').classList.add('hidden');
+                    messageBox.classList.add('hidden');
                     gameStarted = true;
                 }
             } else if (gameStarted) {
                 if (checkCollision(mousePos.x, mousePos.y)) {
-                    splats.push({ x: mousePos.x, y: mousePos.y, r: 10 + Math.random() * 8 });
-                    resetMouse("Dead");
+                    splats.push({ x: mousePos.x, y: mousePos.y, r: SPLAT_RADIUS + Math.random() * 5 });
+                    isDead = true;
+                    messageBox.innerHTML = "<h2>You Died!</h2><p>Return to the start (top left).</p>";
+                    messageBox.classList.remove('hidden');
                 } else if (Math.hypot(mousePos.x - goal.x, mousePos.y - goal.y) < goal.radius) {
                     levelCleared = true;
-                    resetMouse("Win");
+                    isDead = true;
+                    messageBox.innerHTML = "<h2>Level Clear!</h2><p>Return to start for a harder maze.</p>";
+                    messageBox.classList.remove('hidden');
                 }
             }
         }
@@ -279,38 +283,28 @@
                 ctx.beginPath();
                 ctx.arc(startZone.x, startZone.y, startZone.radius, 0, Math.PI * 2);
                 ctx.strokeStyle = '#333';
-                ctx.setLineDash([5, 5]);
                 ctx.stroke();
-                ctx.setLineDash([]);
-                
-                const dx = startZone.x - mousePos.x;
-                const dy = startZone.y - mousePos.y;
-                const angle = Math.atan2(dy, dx);
-                ctx.save();
-                ctx.translate(mousePos.x, mousePos.y);
-                ctx.rotate(angle);
-                ctx.beginPath();
-                ctx.moveTo(30, 0); ctx.lineTo(15, -8); ctx.lineTo(15, 8); ctx.closePath();
-                ctx.fillStyle = 'rgba(255,255,255,0.3)';
-                ctx.fill();
-                ctx.restore();
             }
 
             if (sonarActive) {
                 ctx.beginPath();
                 ctx.arc(mousePos.x, mousePos.y, sonarRadius, 0, Math.PI * 2);
-                ctx.strokeStyle = `rgba(0, 200, 255, ${1 - (sonarRadius / SONAR_MAX_RADIUS)})`;
-                ctx.lineWidth = 4;
+                ctx.strokeStyle = `rgba(0, 150, 255, ${1 - (sonarRadius / SONAR_MAX_RADIUS)})`;
                 ctx.stroke();
+
+                walls.forEach((w, i) => {
+                    const cx = Math.max(w.x, Math.min(mousePos.x, w.x + w.w));
+                    const cy = Math.max(w.y, Math.min(mousePos.y, w.y + w.h));
+                    if (Math.abs(Math.hypot(mousePos.x - cx, mousePos.y - cy) - sonarRadius) < 30) wallAlphaState[i] = 1.0;
+                });
             }
 
             walls.forEach((w, i) => {
                 const alpha = levelCleared ? 0.2 : wallAlphaState[i];
                 if (alpha > 0) {
-                    ctx.fillStyle = `rgba(100, 100, 100, ${alpha * 0.3})`;
+                    ctx.fillStyle = `rgba(255, 255, 255, ${alpha * 0.3})`;
                     ctx.fillRect(w.x, w.y, w.w, w.h);
-                    ctx.strokeStyle = `rgba(0, 255, 255, ${alpha})`;
-                    ctx.lineWidth = 1;
+                    ctx.strokeStyle = `rgba(0, 200, 255, ${alpha})`;
                     ctx.strokeRect(w.x, w.y, w.w, w.h);
                 }
             });
@@ -323,7 +317,7 @@
             });
 
             ctx.fillStyle = GOAL_COLOR;
-            ctx.shadowBlur = levelCleared ? 0 : 20;
+            ctx.shadowBlur = 15;
             ctx.shadowColor = GOAL_COLOR;
             ctx.beginPath();
             ctx.arc(goal.x, goal.y, goal.radius, 0, Math.PI * 2);
@@ -332,45 +326,24 @@
 
             ctx.fillStyle = isDead ? '#444' : '#fff';
             ctx.beginPath();
-            ctx.arc(mousePos.x, mousePos.y, 5, 0, Math.PI * 2);
+            ctx.arc(mousePos.x, mousePos.y, 4, 0, Math.PI * 2);
             ctx.fill();
 
             update();
             requestAnimationFrame(draw);
         }
 
-        window.addEventListener('mousemove', e => {
-            mousePos.x = e.clientX;
-            mousePos.y = e.clientY;
-        });
-
-        window.addEventListener('contextmenu', e => {
+        window.addEventListener('mousemove', (e) => { mousePos.x = e.clientX; mousePos.y = e.clientY; });
+        window.addEventListener('contextmenu', (e) => {
             e.preventDefault();
-            if (sonarCooldown === 0 && !isDead) {
+            if (!isDead && sonarCooldown === 0) {
                 sonarActive = true;
                 sonarRadius = 0;
                 sonarCooldown = SONAR_COOLDOWN_TIME;
             }
         });
-
-        document.getElementById('msg-btn').onclick = () => {
-            document.getElementById('message-box').classList.add('hidden');
-        };
-
-        window.addEventListener('resize', () => {
-            canvas.width = window.innerWidth;
-            canvas.height = window.innerHeight;
-            setupLevel();
-        });
-
-        // Initialize Start
-        window.onload = () => {
-            canvas.width = window.innerWidth;
-            canvas.height = window.innerHeight;
-            setupLevel();
-            draw();
-        };
-
+        window.addEventListener('resize', resize);
+        window.onload = () => { resize(); isDead = true; draw(); };
     </script>
 </body>
 </html>
