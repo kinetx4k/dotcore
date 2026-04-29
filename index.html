@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dark Maze - Find the Light</title>
+    <title>Dark Maze - Procedural Persistence</title>
     <style>
         body, html {
             margin: 0;
@@ -13,7 +13,7 @@
             overflow: hidden;
             background-color: #000;
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            cursor: none; /* Hide the default cursor */
+            cursor: none;
         }
 
         canvas {
@@ -27,6 +27,66 @@
             color: white;
             pointer-events: none;
             user-select: none;
+            z-index: 10;
+        }
+
+        .menu-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.9);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            z-index: 100;
+            transition: opacity 0.5s;
+        }
+
+        .hidden {
+            display: none !important;
+            opacity: 0;
+        }
+
+        .level-grid {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 15px;
+            margin-top: 20px;
+            pointer-events: auto;
+        }
+
+        .level-btn {
+            width: 50px;
+            height: 50px;
+            background: #222;
+            border: 2px solid #444;
+            color: #888;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            border-radius: 8px;
+            transition: all 0.3s;
+        }
+
+        .level-btn.unlocked {
+            border-color: #00FF00;
+            color: #fff;
+            background: #113311;
+        }
+
+        .level-btn.unlocked:hover {
+            background: #00FF00;
+            color: #000;
+        }
+
+        .level-btn.locked {
+            cursor: not-allowed;
+            opacity: 0.5;
         }
 
         #message-box {
@@ -36,419 +96,446 @@
             transform: translate(-50%, -50%);
             background: rgba(0, 0, 0, 0.85);
             color: white;
-            padding: 20px 40px;
+            padding: 30px;
             border: 2px solid #333;
-            border-radius: 10px;
+            border-radius: 15px;
             text-align: center;
-            transition: opacity 0.5s;
-            z-index: 100;
-        }
-
-        .hidden {
-            opacity: 0;
-            pointer-events: none;
-        }
-
-        #tutorial {
-            font-size: 1.2rem;
-            line-height: 1.6;
-        }
-
-        #level-indicator {
-            font-size: 1.5rem;
-            font-weight: bold;
-            color: #444;
+            z-index: 50;
+            pointer-events: auto;
         }
 
         #ability-bar {
             position: absolute;
-            bottom: 20px;
+            bottom: 30px;
             left: 50%;
             transform: translateX(-50%);
             color: white;
-            font-size: 1rem;
             text-align: center;
             pointer-events: none;
+            background: rgba(0,0,0,0.5);
+            padding: 10px 20px;
+            border-radius: 20px;
         }
 
-        .sonar-ready { color: #00FF00; font-weight: bold; }
-        .sonar-charging { color: #666; }
+        .sonar-ready { color: #00FF00; font-weight: bold; text-shadow: 0 0 10px #00FF00; }
+        .sonar-charging { color: #ff4444; }
+        
+        .btn-main {
+            margin-top: 20px;
+            padding: 10px 25px;
+            background: #4CAF50;
+            border: none;
+            color: white;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 1rem;
+        }
     </style>
 </head>
 <body>
 
     <div id="ui-layer">
         <div id="level-indicator">Level 1</div>
+        <div id="status-text" style="font-size: 0.8rem; color: #666; margin-top: 5px;">Saving progress...</div>
+    </div>
+
+    <!-- Main Menu / Level Selection -->
+    <div id="menu-overlay" class="menu-overlay">
+        <h1>DARK MAZE</h1>
+        <p>Select a Level</p>
+        <div id="level-grid" class="level-grid"></div>
+        <button class="btn-main" id="close-menu-btn">Back to Game</button>
     </div>
 
     <div id="ability-bar"></div>
 
-    <div id="message-box">
-        <div id="tutorial">
-            <h2>Welcome to the Darkness</h2>
-            <p>Move your mouse to the <strong>green dot</strong> at the bottom right.</p>
-            <p>The walls are invisible. If you touch one, you die.</p>
-            <p>A <strong>red splat</strong> marks your mistakes.</p>
-            <p style="color: #4CAF50;">Move your mouse here now to start.</p>
-        </div>
+    <div id="message-box" class="hidden">
+        <div id="msg-content"></div>
+        <button class="btn-main" id="msg-btn">Continue</button>
     </div>
 
     <canvas id="gameCanvas"></canvas>
 
-    <script>
-        /**
-         * GAME LOGIC "DARK MAZE"
-         * A game about patience and spatial memory.
-         */
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
+        // Firebase Setup
+        const firebaseConfig = JSON.parse(__firebase_config);
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'dark-maze-procedural';
+
+        // Constants & Config
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
-        const levelIndicator = document.getElementById('level-indicator');
-        const messageBox = document.getElementById('message-box');
-        const tutorialText = document.getElementById('tutorial');
-        const abilityBar = document.getElementById('ability-bar');
+        const SONAR_COOLDOWN_TIME = 600; // 10 seconds at 60fps
+        const SONAR_MAX_RADIUS = 1000;
+        const SONAR_SPEED = 12;
+        const SPLAT_COLOR = 'rgba(200, 0, 0, 0.8)';
+        const GOAL_COLOR = '#00FF00';
 
         // Game State
-        let currentLevel = 0;
-        let isDead = false;
+        let user = null;
+        let highestUnlocked = 1;
+        let currentLevel = 1;
+        let isDead = true;
         let gameStarted = false;
-        let levelCleared = false; 
-        let mousePos = { x: 0, y: 0 };
-        let splats = []; 
-        let walls = []; 
-        let goal = { x: 0, y: 0, radius: 15 };
-        let startZone = { x: 50, y: 50, radius: 40 };
-
-        // Ability State: Sonar
-        let sonarUnlocked = false;
+        let levelCleared = false;
+        let mousePos = { x: 50, y: 50 };
+        let splats = [];
+        let walls = [];
+        let goal = { x: 0, y: 0, radius: 20 };
+        let startZone = { x: 60, y: 60, radius: 45 };
+        
+        // Sonar
         let sonarActive = false;
         let sonarRadius = 0;
-        let sonarCooldown = 0; // Cooldown timer in frames
-        const SONAR_MAX_RADIUS = 600;
-        const SONAR_SPEED = 10;
-        const SONAR_COOLDOWN_TIME = 180; // 3 seconds at 60fps
-        let wallAlphaState = []; // Stores individual alpha for wall glowing
+        let sonarCooldown = 0;
+        let wallAlphaState = [];
 
-        // Configuration
-        const SPLAT_RADIUS = 8;
-        const GOAL_COLOR = '#00FF00';
-        const SPLAT_COLOR = 'rgba(200, 0, 0, 0.7)';
+        // Maze Generation Data
+        let gridSize = { cols: 0, rows: 0 };
+        let cellSize = 0;
 
         /**
-         * Initializes Level Data
+         * Maze Generation Algorithm (Recursive Backtracker)
          */
-        const levels = [
-            {
-                name: "The Beginning",
-                walls: [
-                    { x: 0, y: 150, w: 0.7, h: 0.1 }, 
-                    { x: 0.3, y: 0.4, w: 0.7, h: 0.1 } 
-                ]
-            },
-            {
-                name: "Sonar Echoes",
-                walls: [
-                    { x: 0, y: 0.2, w: 0.8, h: 0.05 },
-                    { x: 0.2, y: 0.5, w: 0.8, h: 0.05 },
-                    { x: 0, y: 0.8, w: 0.8, h: 0.05 }
-                ]
-            },
-            {
-                name: "The Bottleneck",
-                walls: [
-                    { x: 0, y: 0, w: 1, h: 0.35 },
-                    { x: 0, y: 0.65, w: 1, h: 0.35 },
-                    { x: 0.4, y: 0.35, w: 0.2, h: 0.15 }
-                ]
-            },
-            {
-                name: "Zig-Zag",
-                walls: [
-                    { x: 0.2, y: 0, w: 0.05, h: 0.7 },
-                    { x: 0.4, y: 0.3, w: 0.05, h: 0.7 },
-                    { x: 0.6, y: 0, w: 0.05, h: 0.7 },
-                    { x: 0.8, y: 0.3, w: 0.05, h: 0.7 }
-                ]
-            },
-            {
-                name: "The Labyrinth",
-                walls: [
-                    { x: 0.1, y: 0, w: 0.02, h: 0.8 },
-                    { x: 0.1, y: 0.8, w: 0.4, h: 0.02 },
-                    { x: 0.3, y: 0.2, w: 0.02, h: 0.6 },
-                    { x: 0.3, y: 0.2, w: 0.5, h: 0.02 },
-                    { x: 0.5, y: 0.4, w: 0.5, h: 0.02 },
-                    { x: 0.7, y: 0.4, w: 0.02, h: 0.4 },
-                    { x: 0.5, y: 0.8, w: 0.4, h: 0.02 }
-                ]
-            }
-        ];
+        function generateMaze(level) {
+            // Level 1 starts at 4x4, gets bigger
+            const complexity = 4 + Math.floor(level / 2);
+            const cols = complexity;
+            const rows = complexity;
+            
+            const mazeGrid = Array.from({ length: rows }, () => Array(cols).fill(true)); // true = wall
+            const visited = Array.from({ length: rows }, () => Array(cols).fill(false));
 
-        function resize() {
-            canvas.width = window.innerWidth;
-            canvas.height = window.innerHeight;
-            setupLevel();
+            function carve(r, c) {
+                visited[r][c] = true;
+                mazeGrid[r][c] = false; // path
+
+                const dirs = [[0, 1], [0, -1], [1, 0], [-1, 0]].sort(() => Math.random() - 0.5);
+
+                for (const [dr, dc] of dirs) {
+                    const nr = r + dr;
+                    const nc = c + dc;
+                    if (nr >= 0 && nr < rows && nc >= 0 && nc < cols && !visited[nr][nc]) {
+                        // Check neighbors to ensure it's a single path
+                        let neighbors = 0;
+                        if (nr > 0 && !mazeGrid[nr-1][nc]) neighbors++;
+                        if (nr < rows-1 && !mazeGrid[nr+1][nc]) neighbors++;
+                        if (nc > 0 && !mazeGrid[nr][nc-1]) neighbors++;
+                        if (nc < cols-1 && !mazeGrid[nr][nc+1]) neighbors++;
+
+                        if (neighbors <= 1) {
+                            carve(nr, nc);
+                        }
+                    }
+                }
+            }
+
+            carve(0, 0); // Start at top left
+            mazeGrid[rows-1][cols-1] = false; // Force path at goal
+            
+            // Convert grid to wall rectangles
+            const w = canvas.width / cols;
+            const h = canvas.height / rows;
+            const newWalls = [];
+
+            for (let r = 0; r < rows; r++) {
+                for (let c = 0; c < cols; c++) {
+                    if (mazeGrid[r][c]) {
+                        newWalls.push({
+                            x: c * w,
+                            y: r * h,
+                            w: w,
+                            h: h
+                        });
+                    }
+                }
+            }
+
+            // Ensure Start and Goal areas are clean
+            return newWalls.filter(wall => {
+                // Circle-Rect collision for Start
+                const startX = Math.max(wall.x, Math.min(startZone.x, wall.x + wall.w));
+                const startY = Math.max(wall.y, Math.min(startZone.y, wall.y + wall.h));
+                const startDist = Math.hypot(startZone.x - startX, startZone.y - startY);
+                
+                // Goal area check
+                const goalXPos = canvas.width - 60;
+                const goalYPos = canvas.height - 60;
+                const goalX = Math.max(wall.x, Math.min(goalXPos, wall.x + wall.w));
+                const goalY = Math.max(wall.y, Math.min(goalYPos, wall.y + wall.h));
+                const goalDist = Math.hypot(goalXPos - goalX, goalYPos - goalY);
+
+                return startDist > startZone.radius && goalDist > 60;
+            });
+        }
+
+        // Persistence Logic
+        async function saveProgress(level) {
+            if (!user) return;
+            const docRef = doc(db, 'artifacts', appId, 'users', user.uid, 'progress', 'main');
+            try {
+                if (level > highestUnlocked) {
+                    highestUnlocked = level;
+                    await setDoc(docRef, { highestUnlocked }, { merge: true });
+                    document.getElementById('status-text').innerText = "Progress saved.";
+                }
+            } catch (e) {
+                console.error("Save error", e);
+            }
+        }
+
+        async function loadProgress() {
+            if (!user) return;
+            const docRef = doc(db, 'artifacts', appId, 'users', user.uid, 'progress', 'main');
+            try {
+                const snap = await getDoc(docRef);
+                if (snap.exists()) {
+                    highestUnlocked = snap.data().highestUnlocked || 1;
+                }
+                updateLevelGrid();
+            } catch (e) {
+                console.error("Load error", e);
+            }
+        }
+
+        function updateLevelGrid() {
+            const grid = document.getElementById('level-grid');
+            grid.innerHTML = '';
+            for (let i = 1; i <= 20; i++) {
+                const btn = document.createElement('div');
+                btn.className = `level-btn ${i <= highestUnlocked ? 'unlocked' : 'locked'}`;
+                btn.innerText = i;
+                if (i <= highestUnlocked) {
+                    btn.onclick = () => {
+                        currentLevel = i;
+                        document.getElementById('menu-overlay').classList.add('hidden');
+                        setupLevel();
+                    };
+                }
+                grid.appendChild(btn);
+            }
         }
 
         function setupLevel() {
-            if (currentLevel >= levels.length) {
-                showVictory();
-                return;
-            }
-
-            const lvl = levels[currentLevel];
-            levelIndicator.innerText = `Level ${currentLevel + 1}: ${lvl.name}`;
-            
-            // Unlock sonar starting from level 2 (index 1)
-            if (currentLevel >= 1) {
-                sonarUnlocked = true;
-                abilityBar.innerHTML = '<span class="sonar-ready">Sonar Ready: [Right Click]</span>';
-            } else {
-                sonarUnlocked = false;
-                abilityBar.innerHTML = '';
-            }
-
-            const rawWalls = lvl.walls.map(w => ({
-                x: w.x * canvas.width,
-                y: w.y * canvas.height,
-                w: w.w * canvas.width,
-                h: w.h * canvas.height
-            }));
-
-            walls = rawWalls.filter(w => {
-                const closestX = Math.max(w.x, Math.min(startZone.x, w.x + w.w));
-                const closestY = Math.max(w.y, Math.min(startZone.y, w.y + w.h));
-                const distanceX = startZone.x - closestX;
-                const distanceY = startZone.y - closestY;
-                const distanceSquared = (distanceX * distanceX) + (distanceY * distanceY);
-                return distanceSquared > (startZone.radius * startZone.radius);
-            });
-
-            // Initialize alpha states for sonar glow effect
+            document.getElementById('level-indicator').innerText = `Level ${currentLevel}`;
+            walls = generateMaze(currentLevel);
             wallAlphaState = walls.map(() => 0);
-
-            goal.x = canvas.width - 50;
-            goal.y = canvas.height - 50;
+            goal.x = canvas.width - 60;
+            goal.y = canvas.height - 60;
+            splats = [];
+            levelCleared = false;
+            resetMouse("Level Start");
         }
 
-        function showVictory() {
-            messageBox.innerHTML = "<h2>Victory!</h2><p>You found your way through the darkness.</p><button onclick='location.reload()' style='cursor:pointer; padding: 10px 20px;'>Play Again</button>";
-            messageBox.classList.remove('hidden');
+        function resetMouse(msg) {
+            isDead = true;
+            sonarActive = false;
+            const content = document.getElementById('msg-content');
+            if (msg === "Level Start") {
+                content.innerHTML = `<h2>Level ${currentLevel}</h2><p>Move to the start circle (top left) to begin.</p>`;
+            } else if (levelCleared) {
+                content.innerHTML = `<h2>Level Complete!</h2><p>Excellent memory. Move back to the start to advance.</p>`;
+            } else {
+                content.innerHTML = `<h2>You Died!</h2><p>The darkness claimed you. Return to the start circle.</p>`;
+            }
+            document.getElementById('message-box').classList.remove('hidden');
         }
 
         function checkCollision(x, y) {
             for (let wall of walls) {
-                if (x > wall.x && x < wall.x + wall.w && y > wall.y && y < wall.y + wall.h) {
-                    return true;
-                }
+                if (x > wall.x && x < wall.x + wall.w && y > wall.y && y < wall.y + wall.h) return true;
             }
-            const borderBuffer = 2;
-            if (x <= borderBuffer || x >= canvas.width - borderBuffer || y <= borderBuffer || y >= canvas.height - borderBuffer) {
-                return true;
-            }
+            const b = 3;
+            if (x < b || x > canvas.width - b || y < b || y > canvas.height - b) return true;
             return false;
         }
 
-        function checkGoal(x, y) {
-            const dist = Math.hypot(x - goal.x, y - goal.y);
-            return dist < goal.radius;
-        }
-
-        function handleDeath() {
-            splats.push({ x: mousePos.x, y: mousePos.y, r: SPLAT_RADIUS + Math.random() * 5 });
-            resetMouse();
-        }
-
-        function resetMouse() {
-            isDead = true;
-            sonarActive = false;
-            messageBox.innerHTML = "<h2>You Died!</h2><p>You touched a wall or the edge.</p><p>Return to the starting area (top left).</p>";
-            messageBox.classList.remove('hidden');
-        }
-
-        function handleLevelClear() {
-            levelCleared = true;
-            isDead = true; 
-            messageBox.innerHTML = "<h2>Level Complete!</h2><p>The path is revealed! Return to the start (top left) for the next challenge.</p>";
-            messageBox.classList.remove('hidden');
-        }
-
         function update() {
-            // Update Sonar state
             if (sonarCooldown > 0) {
                 sonarCooldown--;
-                if (sonarUnlocked && !isDead) {
-                    const percent = Math.floor((1 - sonarCooldown / SONAR_COOLDOWN_TIME) * 100);
-                    abilityBar.innerHTML = `<span class="sonar-charging">Sonar Recharging: ${percent}%</span>`;
-                    if (sonarCooldown === 0) {
-                        abilityBar.innerHTML = '<span class="sonar-ready">Sonar Ready: [Right Click]</span>';
-                    }
+                const bar = document.getElementById('ability-bar');
+                if (sonarCooldown === 0) {
+                    bar.innerHTML = '<span class="sonar-ready">Sonar Ready [Right Click]</span>';
+                } else {
+                    const sec = Math.ceil(sonarCooldown / 60);
+                    bar.innerHTML = `<span class="sonar-charging">Sonar Recharging: ${sec}s</span>`;
                 }
             }
 
             if (sonarActive) {
                 sonarRadius += SONAR_SPEED;
-                if (sonarRadius > SONAR_MAX_RADIUS) {
-                    sonarActive = false;
-                }
+                if (sonarRadius > SONAR_MAX_RADIUS) sonarActive = false;
+                walls.forEach((w, i) => {
+                    const cx = Math.max(w.x, Math.min(mousePos.x, w.x + w.w));
+                    const cy = Math.max(w.y, Math.min(mousePos.y, w.y + w.h));
+                    if (Math.abs(Math.hypot(mousePos.x - cx, mousePos.y - cy) - sonarRadius) < 30) {
+                        wallAlphaState[i] = 1.0;
+                    }
+                });
             }
 
-            // Decay wall alpha (glow) over time
-            for (let i = 0; i < wallAlphaState.length; i++) {
-                if (wallAlphaState[i] > 0) {
-                    wallAlphaState[i] -= 0.015; // Glow duration approx 1 second
-                }
-            }
+            wallAlphaState = wallAlphaState.map(a => Math.max(0, a - 0.012));
 
             if (isDead) {
-                const distToStart = Math.hypot(mousePos.x - startZone.x, mousePos.y - startZone.y);
-                if (distToStart < startZone.radius) {
+                const dist = Math.hypot(mousePos.x - startZone.x, mousePos.y - startZone.y);
+                if (dist < startZone.radius) {
                     if (levelCleared) {
                         currentLevel++;
-                        splats = []; 
+                        saveProgress(currentLevel);
                         setupLevel();
-                        levelCleared = false;
                     }
                     isDead = false;
-                    messageBox.classList.add('hidden');
-                    if (!gameStarted) gameStarted = true;
+                    document.getElementById('message-box').classList.add('hidden');
+                    gameStarted = true;
                 }
             } else if (gameStarted) {
                 if (checkCollision(mousePos.x, mousePos.y)) {
-                    handleDeath();
-                } else if (checkGoal(mousePos.x, mousePos.y)) {
-                    handleLevelClear();
+                    splats.push({ x: mousePos.x, y: mousePos.y, r: 10 + Math.random() * 8 });
+                    resetMouse("Dead");
+                } else if (Math.hypot(mousePos.x - goal.x, mousePos.y - goal.y) < goal.radius) {
+                    levelCleared = true;
+                    resetMouse("Win");
                 }
             }
-        }
-
-        function drawArrow(fromX, fromY, toX, toY) {
-            const headlen = 15; 
-            const dx = toX - fromX;
-            const dy = toY - fromY;
-            const angle = Math.atan2(dy, dx);
-            ctx.save();
-            ctx.strokeStyle = "rgba(255, 255, 255, 0.4)";
-            ctx.lineWidth = 2;
-            ctx.beginPath();
-            ctx.moveTo(fromX, fromY);
-            ctx.lineTo(toX, toY);
-            ctx.stroke();
-            ctx.beginPath();
-            ctx.moveTo(toX, toY);
-            ctx.lineTo(toX - headlen * Math.cos(angle - Math.PI / 6), toY - headlen * Math.sin(angle - Math.PI / 6));
-            ctx.lineTo(toX - headlen * Math.cos(angle + Math.PI / 6), toY - headlen * Math.sin(angle + Math.PI / 6));
-            ctx.closePath();
-            ctx.fillStyle = "rgba(255, 255, 255, 0.4)";
-            ctx.fill();
-            ctx.restore();
         }
 
         function draw() {
             ctx.fillStyle = '#000';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-            if (isDead || !gameStarted) {
+            // Start Area
+            if (isDead) {
                 ctx.beginPath();
                 ctx.arc(startZone.x, startZone.y, startZone.radius, 0, Math.PI * 2);
                 ctx.strokeStyle = '#333';
                 ctx.setLineDash([5, 5]);
                 ctx.stroke();
-                ctx.closePath();
                 ctx.setLineDash([]);
-                if (isDead) {
-                    drawArrow(mousePos.x, mousePos.y, startZone.x, startZone.y);
-                }
+                
+                // Direction Arrow
+                const dx = startZone.x - mousePos.x;
+                const dy = startZone.y - mousePos.y;
+                const angle = Math.atan2(dy, dx);
+                ctx.save();
+                ctx.translate(mousePos.x, mousePos.y);
+                ctx.rotate(angle);
+                ctx.beginPath();
+                ctx.moveTo(30, 0); ctx.lineTo(15, -8); ctx.lineTo(15, 8); ctx.closePath();
+                ctx.fillStyle = 'rgba(255,255,255,0.3)';
+                ctx.fill();
+                ctx.restore();
             }
 
-            // Draw Sonar Wave
+            // Sonar Effect
             if (sonarActive) {
-                ctx.save();
                 ctx.beginPath();
                 ctx.arc(mousePos.x, mousePos.y, sonarRadius, 0, Math.PI * 2);
-                ctx.strokeStyle = `rgba(0, 150, 255, ${1 - (sonarRadius / SONAR_MAX_RADIUS)})`;
-                ctx.lineWidth = 3;
+                ctx.strokeStyle = `rgba(0, 200, 255, ${1 - (sonarRadius / SONAR_MAX_RADIUS)})`;
+                ctx.lineWidth = 4;
                 ctx.stroke();
-                ctx.restore();
-
-                // Detect walls hit by sonar
-                walls.forEach((w, i) => {
-                    const closestX = Math.max(w.x, Math.min(mousePos.x, w.x + w.w));
-                    const closestY = Math.max(w.y, Math.min(mousePos.y, w.y + w.h));
-                    const dist = Math.hypot(mousePos.x - closestX, mousePos.y - closestY);
-                    
-                    // If wave passes the wall, light it up
-                    if (Math.abs(dist - sonarRadius) < 20) {
-                        wallAlphaState[i] = 1.0;
-                    }
-                });
             }
 
-            // Draw Walls (revealed by sonar or level clear)
+            // Walls
             walls.forEach((w, i) => {
-                const alpha = levelCleared ? 0.15 : wallAlphaState[i];
+                const alpha = levelCleared ? 0.2 : wallAlphaState[i];
                 if (alpha > 0) {
-                    ctx.fillStyle = `rgba(255, 255, 255, ${alpha * 0.4})`;
+                    ctx.fillStyle = `rgba(100, 100, 100, ${alpha * 0.3})`;
                     ctx.fillRect(w.x, w.y, w.w, w.h);
-                    // Glowing border
-                    ctx.strokeStyle = `rgba(0, 200, 255, ${alpha})`;
+                    ctx.strokeStyle = `rgba(0, 255, 255, ${alpha})`;
                     ctx.lineWidth = 1;
                     ctx.strokeRect(w.x, w.y, w.w, w.h);
                 }
             });
 
+            // Splats
             ctx.fillStyle = SPLAT_COLOR;
             splats.forEach(s => {
                 ctx.beginPath();
                 ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
                 ctx.fill();
-                for(let i=0; i<3; i++) {
-                    ctx.beginPath();
-                    ctx.arc(s.x + (Math.random()-0.5)*15, s.y + (Math.random()-0.5)*15, s.r/3, 0, Math.PI * 2);
-                    ctx.fill();
-                }
             });
 
+            // Goal
             ctx.fillStyle = GOAL_COLOR;
-            ctx.shadowBlur = 15;
+            ctx.shadowBlur = levelCleared ? 0 : 20;
             ctx.shadowColor = GOAL_COLOR;
             ctx.beginPath();
             ctx.arc(goal.x, goal.y, goal.radius, 0, Math.PI * 2);
             ctx.fill();
             ctx.shadowBlur = 0;
 
+            // Cursor
             ctx.fillStyle = isDead ? '#444' : '#fff';
             ctx.beginPath();
-            ctx.arc(mousePos.x, mousePos.y, 4, 0, Math.PI * 2);
+            ctx.arc(mousePos.x, mousePos.y, 5, 0, Math.PI * 2);
             ctx.fill();
 
             update();
             requestAnimationFrame(draw);
         }
 
-        // Event Listeners
-        window.addEventListener('mousemove', (e) => {
+        // Interaction
+        window.addEventListener('mousemove', e => {
             mousePos.x = e.clientX;
             mousePos.y = e.clientY;
         });
 
-        // Trigger Sonar on Right Click
-        window.addEventListener('contextmenu', (e) => {
-            e.preventDefault(); // Prevent standard menu
-            if (sonarUnlocked && !isDead && sonarCooldown === 0) {
+        window.addEventListener('contextmenu', e => {
+            e.preventDefault();
+            if (sonarCooldown === 0 && !isDead) {
                 sonarActive = true;
                 sonarRadius = 0;
                 sonarCooldown = SONAR_COOLDOWN_TIME;
             }
         });
 
-        window.addEventListener('resize', resize);
+        // Level Select Hotkey
+        window.addEventListener('keydown', e => {
+            if (e.key === 'Escape' || e.key === 'm') {
+                document.getElementById('menu-overlay').classList.toggle('hidden');
+                updateLevelGrid();
+            }
+        });
 
-        window.onload = () => {
-            resize();
-            isDead = true; 
-            draw();
+        document.getElementById('close-menu-btn').onclick = () => {
+            document.getElementById('menu-overlay').classList.add('hidden');
         };
+
+        document.getElementById('msg-btn').onclick = () => {
+            document.getElementById('message-box').classList.add('hidden');
+        };
+
+        window.addEventListener('resize', () => {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            setupLevel();
+        });
+
+        // Initialize Firebase & Start
+        (async () => {
+            document.getElementById('status-text').innerText = "Connecting...";
+            try {
+                const cred = await signInAnonymously(auth);
+                user = cred.user;
+                await loadProgress();
+                document.getElementById('status-text').innerText = "Sync active.";
+            } catch (err) {
+                console.error("Auth error", err);
+                document.getElementById('status-text').innerText = "Offline mode.";
+            }
+            
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            setupLevel();
+            draw();
+        })();
+
     </script>
 </body>
 </html>
