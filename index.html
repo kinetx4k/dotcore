@@ -177,13 +177,28 @@
             const lvl = levels[currentLevel];
             levelIndicator.innerText = `Level ${currentLevel + 1}: ${lvl.name}`;
             
-            // Convert relative wall coordinates to pixels
-            walls = lvl.walls.map(w => ({
+            // Convert relative wall coordinates to pixels and filter out any wall at the start point
+            const rawWalls = lvl.walls.map(w => ({
                 x: w.x * canvas.width,
                 y: w.y * canvas.height,
                 w: w.w * canvas.width,
                 h: w.h * canvas.height
             }));
+
+            // Filter out walls that intersect with the starting zone (x: 50, y: 50, r: 40)
+            walls = rawWalls.filter(w => {
+                // Find the closest point on the wall rectangle to the center of the start circle
+                const closestX = Math.max(w.x, Math.min(startZone.x, w.x + w.w));
+                const closestY = Math.max(w.y, Math.min(startZone.y, w.y + w.h));
+                
+                // Calculate distance from center to this closest point
+                const distanceX = startZone.x - closestX;
+                const distanceY = startZone.y - closestY;
+                const distanceSquared = (distanceX * distanceX) + (distanceY * distanceY);
+                
+                // If distance is greater than radius, the wall is not inside the start point
+                return distanceSquared > (startZone.radius * startZone.radius);
+            });
 
             goal.x = canvas.width - 50;
             goal.y = canvas.height - 50;
