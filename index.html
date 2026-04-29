@@ -3,626 +3,318 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Abyss Survivor</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+    <title>Dark Maze - Find the Light</title>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
-        
-        :root {
-            --abyss-deep: #05050a;
-            --abyss-glow: #4ecca3;
-            --abyss-blood: #e94560;
-            --abyss-gold: #facc15;
-        }
-
-        body {
-            font-family: 'Press Start 2P', cursive;
-            background-color: var(--abyss-deep);
-            color: white;
-            overflow: hidden;
+        body, html {
             margin: 0;
-            user-select: none;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: #000;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            cursor: none; /* Hide the default cursor */
         }
 
         canvas {
-            image-rendering: pixelated;
-            background-color: #0c0c14;
             display: block;
         }
 
-        .ui-layer {
+        #ui-layer {
             position: absolute;
-            inset: 0;
+            top: 20px;
+            left: 20px;
+            color: white;
             pointer-events: none;
-            display: flex;
-            flex-direction: column;
+            user-select: none;
         }
 
-        .pixel-panel {
-            background: rgba(10, 10, 26, 0.9);
-            border: 4px solid #1a1a3a;
-            box-shadow: 4px 4px 0px rgba(0,0,0,0.5);
-            pointer-events: auto;
-        }
-
-        .bar-container {
-            width: 200px;
-            height: 16px;
-            background: #1a1a3a;
+        #message-box {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.85);
+            color: white;
+            padding: 20px 40px;
             border: 2px solid #333;
-            overflow: hidden;
-        }
-
-        .bar-fill {
-            height: 100%;
-            transition: width 0.2s ease-out;
-        }
-
-        .crt-overlay {
-            position: fixed;
-            inset: 0;
-            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.1) 50%), 
-                        linear-gradient(90deg, rgba(255, 0, 0, 0.02), rgba(0, 255, 0, 0.01), rgba(0, 0, 255, 0.02));
+            border-radius: 10px;
+            text-align: center;
+            transition: opacity 0.5s;
             z-index: 100;
-            background-size: 100% 3px, 3px 100%;
+        }
+
+        .hidden {
+            opacity: 0;
             pointer-events: none;
         }
 
-        @keyframes pulse {
-            0% { transform: scale(1); }
-            50% { transform: scale(1.05); }
-            100% { transform: scale(1); }
+        #tutorial {
+            font-size: 1.2rem;
+            line-height: 1.6;
         }
 
-        .pulse-text { animation: pulse 2s infinite; }
+        #level-indicator {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #444;
+        }
     </style>
 </head>
-<body class="flex items-center justify-center min-h-screen">
-    <div class="crt-overlay"></div>
+<body>
 
-    <!-- Start Menu -->
-    <div id="startMenu" class="ui-layer items-center justify-center z-50">
-        <div class="pixel-panel p-10 flex flex-col items-center gap-8 text-center max-w-lg">
-            <div>
-                <h1 class="text-3xl text-emerald-400 mb-2 italic">ABYSS</h1>
-                <h2 class="text-xl text-white tracking-widest uppercase">Survivor</h2>
-            </div>
-            
-            <p class="text-[8px] text-gray-400 leading-relaxed uppercase">
-                Darkness consumes everything.<br>
-                Survive the waves of shadows.<br>
-                Collect gems to grow stronger.
-            </p>
+    <div id="ui-layer">
+        <div id="level-indicator">Level 1</div>
+    </div>
 
-            <button id="beginBtn" class="bg-emerald-600 hover:bg-emerald-500 text-white px-8 py-4 text-xs border-b-4 border-emerald-900 active:border-b-0 active:translate-y-1 transition-all uppercase font-bold">
-                Enter Abyss
-            </button>
-
-            <div class="grid grid-cols-2 gap-4 text-[7px] text-gray-500 uppercase">
-                <div>[WASD] MOVE</div>
-                <div>[MOUSE] AIM</div>
-                <div>[AUTO] FIRE</div>
-                <div>[P] PAUSE</div>
-            </div>
+    <div id="message-box">
+        <div id="tutorial">
+            <h2>Welcome to the Darkness</h2>
+            <p>Move your mouse to the <strong>green dot</strong> at the bottom right.</p>
+            <p>The walls are invisible. If you touch one, you die.</p>
+            <p>A <strong>red splat</strong> marks your mistakes.</p>
+            <p style="color: #4CAF50;">Move your mouse here now to start.</p>
         </div>
     </div>
 
-    <!-- HUD -->
-    <div id="hud" class="hidden ui-layer p-6 justify-between pointer-events-none">
-        <div class="flex justify-between items-start w-full">
-            <div class="flex flex-col gap-3">
-                <div class="flex flex-col gap-1">
-                    <span class="text-[8px] text-gray-400 uppercase">Life Force</span>
-                    <div class="bar-container border-emerald-900">
-                        <div id="hpFill" class="bar-fill bg-emerald-500" style="width: 100%"></div>
-                    </div>
-                </div>
-                <div class="flex flex-col gap-1">
-                    <span class="text-[8px] text-gray-400 uppercase">Evolution</span>
-                    <div class="bar-container border-blue-900">
-                        <div id="xpFill" class="bar-fill bg-blue-500" style="width: 0%"></div>
-                    </div>
-                </div>
-            </div>
-            <div class="text-right flex flex-col gap-1">
-                <div class="text-[8px] text-gray-400 uppercase">Time Elapsed</div>
-                <div id="timer" class="text-lg text-white">00:00</div>
-                <div class="text-[8px] text-emerald-400 mt-2 uppercase">Lvl <span id="lvlDisplay">1</span></div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Upgrade Menu -->
-    <div id="upgradeMenu" class="hidden ui-layer items-center justify-center z-[60] bg-black/60 backdrop-blur-sm">
-        <div class="pixel-panel p-8 w-full max-w-sm flex flex-col gap-6">
-            <h2 class="text-lg text-blue-400 text-center uppercase">Evolution Choice</h2>
-            <div id="upgradeOptions" class="flex flex-col gap-4">
-                <!-- Options injected by JS -->
-            </div>
-        </div>
-    </div>
-
-    <!-- Game Over Screen -->
-    <div id="deathScreen" class="hidden ui-layer items-center justify-center z-[70] bg-black/90">
-        <div class="pixel-panel p-10 flex flex-col items-center gap-6 text-center">
-            <h2 class="text-2xl text-rose-600 uppercase">Lost to Darkness</h2>
-            <p id="deathStats" class="text-[8px] text-gray-500 uppercase leading-loose"></p>
-            <button id="retryBtn" class="bg-gray-800 hover:bg-gray-700 text-white px-8 py-4 text-xs border-b-4 border-black active:border-b-0 active:translate-y-1 transition-all uppercase">
-                Try Again
-            </button>
-        </div>
-    </div>
-
-    <canvas id="gameStage"></canvas>
+    <canvas id="gameCanvas"></canvas>
 
     <script>
-        // --- Core Configuration ---
-        const GameConfig = {
-            tileSize: 64,
-            playerSpeed: 1.8, // Slow movement as requested
-            enemyBaseSpeed: 0.8,
-            xpPerGem: 25,
-            spawnRate: 2000, // ms
-            autoFireRate: 800, // ms
-            bulletSpeed: 5,
-            colors: {
-                player: '#4ecca3',
-                enemy: '#e94560',
-                gem: '#facc15',
-                bullet: '#ffffff',
-                bg: '#0c0c14'
-            }
-        };
+        /**
+         * GAME LOGIC "DARK MAZE"
+         * A game about patience and spatial memory.
+         */
 
-        // --- Global State ---
-        const State = {
-            running: false,
-            paused: false,
-            time: 0,
-            frame: 0,
-            entities: {
-                player: null,
-                enemies: [],
-                bullets: [],
-                gems: [],
-                particles: []
-            },
-            stats: {
-                kills: 0,
-                lvl: 1,
-                xp: 0,
-                xpNeeded: 100
-            },
-            viewport: {
-                x: 0,
-                y: 0,
-                w: window.innerWidth,
-                h: window.innerHeight
-            }
-        };
-
-        const canvas = document.getElementById('gameStage');
+        const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
-        
-        // --- Helpers ---
-        const dist = (a, b) => Math.sqrt((a.x - b.x)**2 + (a.y - b.y)**2);
-        const lerp = (a, b, t) => a + (b - a) * t;
+        const levelIndicator = document.getElementById('level-indicator');
+        const messageBox = document.getElementById('message-box');
+        const tutorialText = document.getElementById('tutorial');
 
-        class Particle {
-            constructor(x, y, color) {
-                this.x = x;
-                this.y = y;
-                this.vx = (Math.random() - 0.5) * 4;
-                this.vy = (Math.random() - 0.5) * 4;
-                this.life = 1.0;
-                this.decay = 0.02 + Math.random() * 0.02;
-                this.color = color;
-                this.size = 2 + Math.random() * 3;
-            }
-            update() {
-                this.x += this.vx;
-                this.y += this.vy;
-                this.life -= this.decay;
-            }
-            draw(ctx, v) {
-                ctx.globalAlpha = this.life;
-                ctx.fillStyle = this.color;
-                ctx.fillRect(this.x - v.x, this.y - v.y, this.size, this.size);
-                ctx.globalAlpha = 1;
-            }
-        }
+        // Game State
+        let currentLevel = 0;
+        let isDead = false;
+        let gameStarted = false;
+        let mousePos = { x: 0, y: 0 };
+        let splats = []; // Stores death positions
+        let walls = []; // Invisible obstacles
+        let goal = { x: 0, y: 0, radius: 15 };
+        let startZone = { x: 50, y: 50, radius: 40 };
 
-        class Bullet {
-            constructor(x, y, tx, ty, damage) {
-                this.x = x;
-                this.y = y;
-                const angle = Math.atan2(ty - y, tx - x);
-                this.vx = Math.cos(angle) * GameConfig.bulletSpeed;
-                this.vy = Math.sin(angle) * GameConfig.bulletSpeed;
-                this.damage = damage;
-                this.life = 200;
-            }
-            update() {
-                this.x += this.vx;
-                this.y += this.vy;
-                this.life--;
-            }
-            draw(ctx, v) {
-                ctx.fillStyle = GameConfig.colors.bullet;
-                ctx.shadowBlur = 10;
-                ctx.shadowColor = 'white';
-                ctx.fillRect(this.x - v.x - 2, this.y - v.y - 2, 4, 4);
-                ctx.shadowBlur = 0;
-            }
-        }
+        // Configuration
+        const SPLAT_RADIUS = 8;
+        const GOAL_COLOR = '#00FF00';
+        const SPLAT_COLOR = 'rgba(200, 0, 0, 0.7)';
 
-        class Gem {
-            constructor(x, y) {
-                this.x = x;
-                this.y = y;
-                this.bob = 0;
+        /**
+         * Initializes Level Data
+         */
+        const levels = [
+            // Level 1: Tutorial - Wide path
+            {
+                name: "The Beginning",
+                walls: [
+                    { x: 0, y: 150, w: 0.7, h: 0.1 }, 
+                    { x: 0.3, y: 0.4, w: 0.7, h: 0.1 } 
+                ]
+            },
+            // Level 2: Simple Turn
+            {
+                name: "The First Turn",
+                walls: [
+                    { x: 0, y: 0.2, w: 0.8, h: 0.05 },
+                    { x: 0.2, y: 0.5, w: 0.8, h: 0.05 },
+                    { x: 0, y: 0.8, w: 0.8, h: 0.05 }
+                ]
+            },
+            // Level 3: Bottleneck
+            {
+                name: "The Bottleneck",
+                walls: [
+                    { x: 0, y: 0, w: 1, h: 0.35 },
+                    { x: 0, y: 0.65, w: 1, h: 0.35 },
+                    { x: 0.4, y: 0.35, w: 0.2, h: 0.15 }
+                ]
+            },
+            // Level 4: Zig-Zag
+            {
+                name: "Zig-Zag",
+                walls: [
+                    { x: 0.2, y: 0, w: 0.05, h: 0.7 },
+                    { x: 0.4, y: 0.3, w: 0.05, h: 0.7 },
+                    { x: 0.6, y: 0, w: 0.05, h: 0.7 },
+                    { x: 0.8, y: 0.3, w: 0.05, h: 0.7 }
+                ]
+            },
+            // Level 5: The Labyrinth
+            {
+                name: "The Labyrinth",
+                walls: [
+                    { x: 0.1, y: 0, w: 0.02, h: 0.8 },
+                    { x: 0.1, y: 0.8, w: 0.4, h: 0.02 },
+                    { x: 0.3, y: 0.2, w: 0.02, h: 0.6 },
+                    { x: 0.3, y: 0.2, w: 0.5, h: 0.02 },
+                    { x: 0.5, y: 0.4, w: 0.5, h: 0.02 },
+                    { x: 0.7, y: 0.4, w: 0.02, h: 0.4 },
+                    { x: 0.5, y: 0.8, w: 0.4, h: 0.02 }
+                ]
             }
-            update() {
-                this.bob = Math.sin(Date.now() / 200) * 4;
-            }
-            draw(ctx, v) {
-                ctx.fillStyle = GameConfig.colors.gem;
-                ctx.beginPath();
-                ctx.moveTo(this.x - v.x, this.y - v.y - 8 + this.bob);
-                ctx.lineTo(this.x - v.x + 6, this.y - v.y + this.bob);
-                ctx.lineTo(this.x - v.x, this.y - v.y + 8 + this.bob);
-                ctx.lineTo(this.x - v.x - 6, this.y - v.y + this.bob);
-                ctx.fill();
-            }
-        }
+        ];
 
-        class Enemy {
-            constructor(x, y, type = 'chaser') {
-                this.x = x;
-                this.y = y;
-                this.type = type;
-                this.hp = 2 + State.stats.lvl;
-                this.maxHp = this.hp;
-                this.speed = GameConfig.enemyBaseSpeed + (Math.random() * 0.2);
-                this.size = 20;
-            }
-            update(player) {
-                const angle = Math.atan2(player.y - this.y, player.x - this.x);
-                this.x += Math.cos(angle) * this.speed;
-                this.y += Math.sin(angle) * this.speed;
-            }
-            draw(ctx, v) {
-                ctx.fillStyle = GameConfig.colors.enemy;
-                ctx.fillRect(this.x - v.x - 10, this.y - v.y - 10, 20, 20);
-                
-                // HP Bar
-                if (this.hp < this.maxHp) {
-                    ctx.fillStyle = '#333';
-                    ctx.fillRect(this.x - v.x - 10, this.y - v.y - 15, 20, 3);
-                    ctx.fillStyle = 'red';
-                    ctx.fillRect(this.x - v.x - 10, this.y - v.y - 15, 20 * (this.hp / this.maxHp), 3);
-                }
-            }
-        }
-
-        class Player {
-            constructor() {
-                this.x = 0;
-                this.y = 0;
-                this.hp = 100;
-                this.maxHp = 100;
-                this.speed = GameConfig.playerSpeed;
-                this.atk = 1;
-                this.fireRate = GameConfig.autoFireRate;
-                this.lastShot = 0;
-                this.size = 24;
-                this.mouse = { x: 0, y: 0 };
-            }
-            update(keys) {
-                let dx = 0;
-                let dy = 0;
-                if (keys['w'] || keys['ArrowUp']) dy -= 1;
-                if (keys['s'] || keys['ArrowDown']) dy += 1;
-                if (keys['a'] || keys['ArrowLeft']) dx -= 1;
-                if (keys['d'] || keys['ArrowRight']) dx += 1;
-
-                if (dx !== 0 && dy !== 0) {
-                    const norm = Math.sqrt(2);
-                    dx /= norm;
-                    dy /= norm;
-                }
-
-                this.x += dx * this.speed;
-                this.y += dy * this.speed;
-
-                // Fire logic
-                if (Date.now() - this.lastShot > this.fireRate) {
-                    this.fire();
-                    this.lastShot = Date.now();
-                }
-            }
-            fire() {
-                // Find nearest enemy or aim at mouse
-                let target = { x: this.x + (this.mouse.x - State.viewport.w/2), y: this.y + (this.mouse.y - State.viewport.h/2) };
-                
-                // Better auto-aiming logic
-                if (State.entities.enemies.length > 0) {
-                    let closest = State.entities.enemies[0];
-                    let minDist = dist(this, closest);
-                    State.entities.enemies.forEach(e => {
-                        const d = dist(this, e);
-                        if (d < minDist) {
-                            minDist = d;
-                            closest = e;
-                        }
-                    });
-                    if (minDist < 400) target = closest;
-                }
-
-                State.entities.bullets.push(new Bullet(this.x, this.y, target.x, target.y, this.atk));
-            }
-            draw(ctx, v) {
-                // Draw Body
-                ctx.fillStyle = GameConfig.colors.player;
-                ctx.shadowBlur = 15;
-                ctx.shadowColor = GameConfig.colors.player;
-                ctx.fillRect(this.x - v.x - 12, this.y - v.y - 12, 24, 24);
-                
-                // Eyes
-                ctx.fillStyle = 'white';
-                ctx.fillRect(this.x - v.x - 6, this.y - v.y - 6, 4, 4);
-                ctx.fillRect(this.x - v.x + 2, this.y - v.y - 6, 4, 4);
-                ctx.shadowBlur = 0;
-            }
-        }
-
-        // --- Logic Control ---
-
-        function setupStage() {
+        function resize() {
             canvas.width = window.innerWidth;
             canvas.height = window.innerHeight;
-            State.viewport.w = canvas.width;
-            State.viewport.h = canvas.height;
-            
-            State.entities.player = new Player();
-            State.entities.enemies = [];
-            State.entities.bullets = [];
-            State.entities.gems = [];
-            State.entities.particles = [];
-            
-            State.stats.xp = 0;
-            State.stats.lvl = 1;
-            State.stats.kills = 0;
-            State.time = 0;
-            State.stats.xpNeeded = 100;
+            setupLevel();
         }
 
-        function spawnWave() {
-            if (!State.running || State.paused) return;
+        function setupLevel() {
+            if (currentLevel >= levels.length) {
+                showVictory();
+                return;
+            }
+
+            const lvl = levels[currentLevel];
+            levelIndicator.innerText = `Level ${currentLevel + 1}: ${lvl.name}`;
             
-            const count = 2 + Math.floor(State.time / 15);
-            for (let i = 0; i < count; i++) {
-                const angle = Math.random() * Math.PI * 2;
-                const distance = 500 + Math.random() * 200;
-                const ex = State.entities.player.x + Math.cos(angle) * distance;
-                const ey = State.entities.player.y + Math.sin(angle) * distance;
-                State.entities.enemies.push(new Enemy(ex, ey));
+            // Convert relative wall coordinates to pixels
+            walls = lvl.walls.map(w => ({
+                x: w.x * canvas.width,
+                y: w.y * canvas.height,
+                w: w.w * canvas.width,
+                h: w.h * canvas.height
+            }));
+
+            goal.x = canvas.width - 50;
+            goal.y = canvas.height - 50;
+        }
+
+        function showVictory() {
+            messageBox.innerHTML = "<h2>Victory!</h2><p>You found your way through the darkness.</p><button onclick='location.reload()' style='cursor:pointer; padding: 10px 20px;'>Play Again</button>";
+            messageBox.classList.remove('hidden');
+        }
+
+        function checkCollision(x, y) {
+            // Check walls
+            for (let wall of walls) {
+                if (x > wall.x && x < wall.x + wall.w && y > wall.y && y < wall.y + wall.h) {
+                    return true;
+                }
             }
             
-            setTimeout(spawnWave, Math.max(800, GameConfig.spawnRate - (State.time * 5)));
-        }
-
-        const keys = {};
-        window.addEventListener('keydown', e => {
-            keys[e.key.toLowerCase()] = true;
-            if (e.key.toLowerCase() === 'p') State.paused = !State.paused;
-        });
-        window.addEventListener('keyup', e => keys[e.key.toLowerCase()] = false);
-        window.addEventListener('mousemove', e => {
-            if (State.entities.player) {
-                State.entities.player.mouse.x = e.clientX;
-                State.entities.player.mouse.y = e.clientY;
+            // Check screen edges (deadly border)
+            const borderBuffer = 2;
+            if (x <= borderBuffer || x >= canvas.width - borderBuffer || y <= borderBuffer || y >= canvas.height - borderBuffer) {
+                return true;
             }
-        });
-
-        function handleLevelUp() {
-            State.paused = true;
-            const menu = document.getElementById('upgradeMenu');
-            const options = document.getElementById('upgradeOptions');
-            menu.classList.remove('hidden');
-            options.innerHTML = '';
-
-            const upgs = [
-                { id: 'dmg', name: 'Raw Power', desc: '+1 Attack Damage', fn: () => State.entities.player.atk += 1 },
-                { id: 'fire', name: 'Hyper Speed', desc: '-15% Cooldown', fn: () => State.entities.player.fireRate *= 0.85 },
-                { id: 'hp', name: 'Vitality', desc: 'Full Heal & +20 Max HP', fn: () => { State.entities.player.maxHp += 20; State.entities.player.hp = State.entities.player.maxHp; } },
-                { id: 'spd', name: 'Nimble Feet', desc: '+10% Movement Speed', fn: () => State.entities.player.speed *= 1.1 }
-            ];
-
-            // Pick 3 random
-            const shuffled = upgs.sort(() => 0.5 - Math.random()).slice(0, 3);
-            shuffled.forEach(u => {
-                const btn = document.createElement('button');
-                btn.className = "pixel-panel p-4 text-left hover:border-emerald-400 transition-colors";
-                btn.innerHTML = `
-                    <div class="text-[9px] text-emerald-400 mb-1 uppercase">${u.name}</div>
-                    <div class="text-[7px] text-gray-400 uppercase">${u.desc}</div>
-                `;
-                btn.onclick = () => {
-                    u.fn();
-                    State.paused = false;
-                    menu.classList.add('hidden');
-                    updateHUD();
-                };
-                options.appendChild(btn);
-            });
-        }
-
-        function updateHUD() {
-            document.getElementById('hpFill').style.width = (State.entities.player.hp / State.entities.player.maxHp * 100) + '%';
-            document.getElementById('xpFill').style.width = (State.stats.xp / State.stats.xpNeeded * 100) + '%';
-            document.getElementById('lvlDisplay').innerText = State.stats.lvl;
             
-            const mins = Math.floor(State.time / 60);
-            const secs = Math.floor(State.time % 60);
-            document.getElementById('timer').innerText = `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+            return false;
         }
 
-        function death() {
-            State.running = false;
-            document.getElementById('deathScreen').classList.remove('hidden');
-            document.getElementById('deathStats').innerHTML = `
-                Sectors Explored: ${State.stats.lvl}<br>
-                Entities Purged: ${State.stats.kills}<br>
-                Time Survived: ${document.getElementById('timer').innerText}
-            `;
+        function checkGoal(x, y) {
+            const dist = Math.hypot(x - goal.x, y - goal.y);
+            return dist < goal.radius;
+        }
+
+        function handleDeath() {
+            // Add splat at death location
+            splats.push({ x: mousePos.x, y: mousePos.y, r: SPLAT_RADIUS + Math.random() * 5 });
+            
+            // Back to start
+            resetMouse();
+        }
+
+        function resetMouse() {
+            isDead = true;
+            messageBox.innerHTML = "<h2>You Died!</h2><p>You touched a wall or the edge.</p><p>Return to the starting area (top left).</p>";
+            messageBox.classList.remove('hidden');
         }
 
         function update() {
-            if (!State.running || State.paused) return;
-
-            State.frame++;
-            if (State.frame % 60 === 0) {
-                State.time++;
-                updateHUD();
+            // If dead, user must move back to the start zone (top left)
+            if (isDead) {
+                const distToStart = Math.hypot(mousePos.x - startZone.x, mousePos.y - startZone.y);
+                if (distToStart < startZone.radius) {
+                    isDead = false;
+                    messageBox.classList.add('hidden');
+                    if (!gameStarted) gameStarted = true;
+                }
+            } else if (gameStarted) {
+                if (checkCollision(mousePos.x, mousePos.y)) {
+                    handleDeath();
+                } else if (checkGoal(mousePos.x, mousePos.y)) {
+                    currentLevel++;
+                    splats = []; 
+                    setupLevel();
+                    resetMouse();
+                    messageBox.innerHTML = "<h2>Level Complete!</h2><p>Move to the start (top left) for the next level.</p>";
+                }
             }
-
-            const p = State.entities.player;
-            p.update(keys);
-
-            // Camera follow (slowly)
-            State.viewport.x = lerp(State.viewport.x, p.x - State.viewport.w/2, 0.1);
-            State.viewport.y = lerp(State.viewport.y, p.y - State.viewport.h/2, 0.1);
-
-            // Bullets
-            State.entities.bullets.forEach((b, i) => {
-                b.update();
-                if (b.life <= 0) State.entities.bullets.splice(i, 1);
-            });
-
-            // Enemies
-            State.entities.enemies.forEach((e, i) => {
-                e.update(p);
-                
-                // Player collision
-                if (dist(e, p) < p.size/2 + 5) {
-                    p.hp -= 0.2;
-                    if (p.hp <= 0) death();
-                    updateHUD();
-                }
-
-                // Bullet collision
-                State.entities.bullets.forEach((b, bi) => {
-                    if (dist(e, b) < 20) {
-                        e.hp -= b.damage;
-                        State.entities.bullets.splice(bi, 1);
-                        if (e.hp <= 0) {
-                            State.entities.enemies.splice(i, 1);
-                            State.stats.kills++;
-                            State.entities.gems.push(new Gem(e.x, e.y));
-                            spawnParticles(e.x, e.y, GameConfig.colors.enemy);
-                        }
-                    }
-                });
-            });
-
-            // Gems
-            State.entities.gems.forEach((g, i) => {
-                g.update();
-                if (dist(g, p) < 50) {
-                    // Magnet effect
-                    g.x += (p.x - g.x) * 0.2;
-                    g.y += (p.y - g.y) * 0.2;
-                }
-                if (dist(g, p) < 15) {
-                    State.entities.gems.splice(i, 1);
-                    State.stats.xp += GameConfig.xpPerGem;
-                    if (State.stats.xp >= State.stats.xpNeeded) {
-                        State.stats.lvl++;
-                        State.stats.xp -= State.stats.xpNeeded;
-                        State.stats.xpNeeded = Math.floor(State.stats.xpNeeded * 1.2);
-                        handleLevelUp();
-                    }
-                    updateHUD();
-                }
-            });
-
-            // Particles
-            State.entities.particles.forEach((prt, i) => {
-                prt.update();
-                if (prt.life <= 0) State.entities.particles.splice(i, 1);
-            });
         }
 
         function draw() {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            const v = State.viewport;
+            // Background
+            ctx.fillStyle = '#000';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-            // Tiled Background
-            const startX = Math.floor(v.x / GameConfig.tileSize) * GameConfig.tileSize;
-            const startY = Math.floor(v.y / GameConfig.tileSize) * GameConfig.tileSize;
-            ctx.strokeStyle = '#1a1a3a';
-            ctx.lineWidth = 1;
-            for (let x = startX; x < startX + v.w + GameConfig.tileSize; x += GameConfig.tileSize) {
-                ctx.beginPath(); ctx.moveTo(x - v.x, 0); ctx.lineTo(x - v.x, v.h); ctx.stroke();
-            }
-            for (let y = startY; y < startY + v.h + GameConfig.tileSize; y += GameConfig.tileSize) {
-                ctx.beginPath(); ctx.moveTo(0, y - v.y); ctx.lineTo(v.w, y - v.y); ctx.stroke();
-            }
-
-            // Entities
-            State.entities.gems.forEach(g => g.draw(ctx, v));
-            State.entities.particles.forEach(p => p.draw(ctx, v));
-            State.entities.enemies.forEach(e => e.draw(ctx, v));
-            State.entities.bullets.forEach(b => b.draw(ctx, v));
-            if (State.entities.player) State.entities.player.draw(ctx, v);
-
-            // Crosshair
-            if (State.entities.player) {
-                ctx.strokeStyle = 'white';
+            // Start Zone
+            if (isDead || !gameStarted) {
                 ctx.beginPath();
-                ctx.arc(State.entities.player.mouse.x, State.entities.player.mouse.y, 10, 0, Math.PI*2);
+                ctx.arc(startZone.x, startZone.y, startZone.radius, 0, Math.PI * 2);
+                ctx.strokeStyle = '#333';
+                ctx.setLineDash([5, 5]);
                 ctx.stroke();
+                ctx.closePath();
+                ctx.setLineDash([]);
             }
-        }
 
-        function engine() {
+            // Draw Splats (Bloodstains)
+            ctx.fillStyle = SPLAT_COLOR;
+            splats.forEach(s => {
+                ctx.beginPath();
+                ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
+                ctx.fill();
+                
+                // Small splatters
+                for(let i=0; i<3; i++) {
+                    ctx.beginPath();
+                    ctx.arc(s.x + (Math.random()-0.5)*15, s.y + (Math.random()-0.5)*15, s.r/3, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+            });
+
+            // Draw Goal (Green Dot)
+            ctx.fillStyle = GOAL_COLOR;
+            ctx.shadowBlur = 15;
+            ctx.shadowColor = GOAL_COLOR;
+            ctx.beginPath();
+            ctx.arc(goal.x, goal.y, goal.radius, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.shadowBlur = 0;
+
+            // Draw Cursor
+            ctx.fillStyle = isDead ? '#444' : '#fff';
+            ctx.beginPath();
+            ctx.arc(mousePos.x, mousePos.y, 4, 0, Math.PI * 2);
+            ctx.fill();
+
             update();
-            draw();
-            requestAnimationFrame(engine);
+            requestAnimationFrame(draw);
         }
 
-        function spawnParticles(x, y, color) {
-            for (let i = 0; i < 10; i++) {
-                State.entities.particles.push(new Particle(x, y, color));
-            }
-        }
-
-        // --- Bootstrap ---
-        document.getElementById('beginBtn').onclick = () => {
-            document.getElementById('startMenu').classList.add('hidden');
-            document.getElementById('hud').classList.remove('hidden');
-            setupStage();
-            State.running = true;
-            spawnWave();
-        };
-
-        document.getElementById('retryBtn').onclick = () => {
-            document.getElementById('deathScreen').classList.add('hidden');
-            setupStage();
-            State.running = true;
-        };
-
-        window.addEventListener('resize', () => {
-            canvas.width = window.innerWidth;
-            canvas.height = window.innerHeight;
-            State.viewport.w = canvas.width;
-            State.viewport.h = canvas.height;
+        // Event Listeners
+        window.addEventListener('mousemove', (e) => {
+            mousePos.x = e.clientX;
+            mousePos.y = e.clientY;
         });
 
-        // Initialize Engine
-        engine();
+        window.addEventListener('resize', resize);
 
+        // Initialization
+        window.onload = () => {
+            resize();
+            isDead = true; 
+            draw();
+        };
     </script>
 </body>
 </html>
