@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dark Maze - Procedural Darkness</title>
+    <title>Dark Maze - Find the Light</title>
     <style>
         body, html {
             margin: 0;
@@ -81,9 +81,9 @@
     <div id="message-box">
         <div id="tutorial">
             <h2>Welcome to the Darkness</h2>
-            <p>The maze is now <strong>randomly generated</strong>.</p>
-            <p>Sonar cooldown is now <strong>10 seconds</strong>.</p>
-            <p style="color: #4CAF50;">Move to the top-left circle to start.</p>
+            <p>Move your mouse to the <strong>green dot</strong>.</p>
+            <p>The maze is random. Sonar has a <strong>10s cooldown</strong>.</p>
+            <p style="color: #4CAF50;">Return to the top-left circle to start.</p>
         </div>
     </div>
 
@@ -111,7 +111,7 @@
         let sonarRadius = 0;
         let sonarCooldown = 0;
         const SONAR_MAX_RADIUS = 1000;
-        const SONAR_SPEED = 12;
+        const SONAR_SPEED = 10;
         const SONAR_COOLDOWN_TIME = 600; // 10 seconds at 60fps
         let wallAlphaState = [];
 
@@ -120,20 +120,15 @@
         const SPLAT_COLOR = 'rgba(200, 0, 0, 0.7)';
 
         /**
-         * COMPLEX MAZE GENERATOR
-         * Uses Recursive Backtracking to ensure a solvable path.
+         * GENERATOR FÜR ZUFÄLLIGE WEGE
          */
         class MazeGenerator {
             constructor(cols, rows) {
                 this.cols = cols;
                 this.rows = rows;
-                this.grid = [];
-                for (let r = 0; r < rows; r++) {
-                    this.grid[r] = [];
-                    for (let c = 0; c < cols; c++) {
-                        this.grid[r][c] = { r, c, visited: false, walls: [true, true, true, true] }; // Top, Right, Bottom, Left
-                    }
-                }
+                this.grid = Array.from({ length: rows }, (_, r) => 
+                    Array.from({ length: cols }, (_, c) => ({ r, c, visited: false, walls: [true, true, true, true] }))
+                );
             }
 
             generate() {
@@ -145,7 +140,6 @@
                 while (stack.length > 0) {
                     const current = stack.pop();
                     const neighbors = this.getNeighbors(current);
-
                     if (neighbors.length > 0) {
                         stack.push(current);
                         const next = neighbors[Math.floor(Math.random() * neighbors.length)];
@@ -154,43 +148,37 @@
                         stack.push(next);
                     }
                 }
-                return this.convertToRects();
+                return this.toRects();
             }
 
             getNeighbors(cell) {
-                const neighbors = [];
                 const { r, c } = cell;
-                if (r > 0 && !this.grid[r - 1][c].visited) neighbors.push(this.grid[r - 1][c]);
-                if (r < this.rows - 1 && !this.grid[r + 1][c].visited) neighbors.push(this.grid[r + 1][c]);
-                if (c > 0 && !this.grid[r][c - 1].visited) neighbors.push(this.grid[r][c - 1]);
-                if (c < this.cols - 1 && !this.grid[r][c + 1].visited) neighbors.push(this.grid[r][c + 1]);
-                return neighbors;
+                return [
+                    r > 0 && this.grid[r-1][c], r < this.rows-1 && this.grid[r+1][c],
+                    c > 0 && this.grid[r][c-1], c < this.cols-1 && this.grid[r][c+1]
+                ].filter(n => n && !n.visited);
             }
 
             removeWalls(a, b) {
-                const dr = a.r - b.r;
-                const dc = a.c - b.c;
-                if (dr === 1) { a.walls[0] = false; b.walls[2] = false; }
-                else if (dr === -1) { a.walls[2] = false; b.walls[0] = false; }
-                if (dc === 1) { a.walls[3] = false; b.walls[1] = false; }
-                else if (dc === -1) { a.walls[1] = false; b.walls[3] = false; }
+                if (a.r > b.r) { a.walls[0] = false; b.walls[2] = false; }
+                else if (a.r < b.r) { a.walls[2] = false; b.walls[0] = false; }
+                else if (a.c > b.c) { a.walls[3] = false; b.walls[1] = false; }
+                else if (a.c < b.c) { a.walls[1] = false; b.walls[3] = false; }
             }
 
-            convertToRects() {
+            toRects() {
                 const rects = [];
-                const cellW = canvas.width / this.cols;
-                const cellH = canvas.height / this.rows;
-                const thickness = 10 + (currentLevel * 2);
-
+                const w = canvas.width / this.cols;
+                const h = canvas.height / this.rows;
+                const t = 8 + (currentLevel * 1.5);
                 for (let r = 0; r < this.rows; r++) {
                     for (let c = 0; c < this.cols; c++) {
                         const cell = this.grid[r][c];
-                        const x = c * cellW;
-                        const y = r * cellH;
-                        if (cell.walls[0]) rects.push({ x, y, w: cellW, h: thickness }); // Top
-                        if (cell.walls[1]) rects.push({ x: x + cellW - thickness, y, w: thickness, h: cellH }); // Right
-                        if (cell.walls[2]) rects.push({ x, y: y + cellH - thickness, w: cellW, h: thickness }); // Bottom
-                        if (cell.walls[3]) rects.push({ x, y, w: thickness, h: cellH }); // Left
+                        const x = c * w, y = r * h;
+                        if (cell.walls[0]) rects.push({ x, y, w, h: t });
+                        if (cell.walls[1]) rects.push({ x: x + w - t, y, w: t, h });
+                        if (cell.walls[2]) rects.push({ x, y: y + h - t, w, h: t });
+                        if (cell.walls[3]) rects.push({ x, y, w: t, h });
                     }
                 }
                 return rects;
@@ -204,18 +192,15 @@
         }
 
         function setupLevel() {
-            levelIndicator.innerText = `Level ${currentLevel + 1}: Procedural Chaos`;
-            
-            // Scaling difficulty: more rows and columns per level
-            const complexity = 4 + currentLevel;
-            const generator = new MazeGenerator(Math.floor(complexity * 1.5), complexity);
-            const allWalls = generator.generate();
+            levelIndicator.innerText = `Level ${currentLevel + 1}`;
+            const size = 4 + currentLevel; 
+            const gen = new MazeGenerator(Math.floor(size * 1.4), size);
+            const allWalls = gen.generate();
 
-            // Clear space around start and goal
             walls = allWalls.filter(w => {
-                const distToStart = Math.hypot((w.x + w.w/2) - startZone.x, (w.y + w.h/2) - startZone.y);
-                const distToGoal = Math.hypot((w.x + w.w/2) - (canvas.width - 50), (w.y + w.h/2) - (canvas.height - 50));
-                return distToStart > 80 && distToGoal > 80;
+                const dS = Math.hypot((w.x + w.w/2) - startZone.x, (w.y + w.h/2) - startZone.y);
+                const dG = Math.hypot((w.x + w.w/2) - (canvas.width-50), (w.y + w.h/2) - (canvas.height-50));
+                return dS > 80 && dG > 80;
             });
 
             wallAlphaState = walls.map(() => 0);
@@ -223,54 +208,52 @@
             goal.y = canvas.height - 50;
         }
 
-        function checkCollision(x, y) {
-            for (let wall of walls) {
-                if (x > wall.x && x < wall.x + wall.w && y > wall.y && y < wall.y + wall.h) return true;
-            }
-            const b = 2;
-            return (x <= b || x >= canvas.width - b || y <= b || y >= canvas.height - b);
+        function drawArrow(fX, fY, tX, tY) {
+            const len = 15;
+            const dx = tX - fX, dy = tY - fY;
+            const angle = Math.atan2(dy, dx);
+            ctx.save();
+            ctx.strokeStyle = "rgba(255, 255, 255, 0.4)";
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(fX, fY);
+            ctx.lineTo(tX, tY);
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.moveTo(tX, tY);
+            ctx.lineTo(tX - len * Math.cos(angle - Math.PI/6), tY - len * Math.sin(angle - Math.PI/6));
+            ctx.lineTo(tX - len * Math.cos(angle + Math.PI/6), tY - len * Math.sin(angle + Math.PI/6));
+            ctx.closePath();
+            ctx.fillStyle = "rgba(255, 255, 255, 0.4)";
+            ctx.fill();
+            ctx.restore();
         }
 
         function update() {
             if (sonarCooldown > 0) {
                 sonarCooldown--;
-                const percent = Math.floor((1 - sonarCooldown / SONAR_COOLDOWN_TIME) * 100);
-                abilityBar.innerHTML = `<span class="sonar-charging">Sonar Recharging: ${percent}%</span>`;
+                abilityBar.innerHTML = `<span class="sonar-charging">Sonar Recharging: ${Math.floor((1 - sonarCooldown/600)*100)}%</span>`;
                 if (sonarCooldown === 0) abilityBar.innerHTML = '<span class="sonar-ready">Sonar Ready: [Right Click]</span>';
             }
-
             if (sonarActive) {
                 sonarRadius += SONAR_SPEED;
                 if (sonarRadius > SONAR_MAX_RADIUS) sonarActive = false;
             }
-
-            for (let i = 0; i < wallAlphaState.length; i++) {
-                if (wallAlphaState[i] > 0) wallAlphaState[i] -= 0.01;
-            }
+            wallAlphaState = wallAlphaState.map(a => Math.max(0, a - 0.015));
 
             if (isDead) {
                 if (Math.hypot(mousePos.x - startZone.x, mousePos.y - startZone.y) < startZone.radius) {
-                    if (levelCleared) {
-                        currentLevel++;
-                        splats = [];
-                        setupLevel();
-                        levelCleared = false;
-                    }
-                    isDead = false;
-                    messageBox.classList.add('hidden');
-                    gameStarted = true;
+                    if (levelCleared) { currentLevel++; splats = []; setupLevel(); levelCleared = false; }
+                    isDead = false; messageBox.classList.add('hidden'); gameStarted = true;
                 }
             } else if (gameStarted) {
-                if (checkCollision(mousePos.x, mousePos.y)) {
+                const hit = walls.some(w => mousePos.x > w.x && mousePos.x < w.x + w.w && mousePos.y > w.y && mousePos.y < w.y + w.h) 
+                          || mousePos.x < 2 || mousePos.x > canvas.width-2 || mousePos.y < 2 || mousePos.y > canvas.height-2;
+                if (hit) {
                     splats.push({ x: mousePos.x, y: mousePos.y, r: SPLAT_RADIUS + Math.random() * 5 });
-                    isDead = true;
-                    messageBox.innerHTML = "<h2>You Died!</h2><p>Return to the start (top left).</p>";
-                    messageBox.classList.remove('hidden');
+                    isDead = true; messageBox.innerHTML = "<h2>You Died!</h2><p>Return to start.</p>"; messageBox.classList.remove('hidden');
                 } else if (Math.hypot(mousePos.x - goal.x, mousePos.y - goal.y) < goal.radius) {
-                    levelCleared = true;
-                    isDead = true;
-                    messageBox.innerHTML = "<h2>Level Clear!</h2><p>Return to start for a harder maze.</p>";
-                    messageBox.classList.remove('hidden');
+                    levelCleared = true; isDead = true; messageBox.innerHTML = "<h2>Level Clear!</h2><p>Return to start.</p>"; messageBox.classList.remove('hidden');
                 }
             }
         }
@@ -279,55 +262,42 @@
             ctx.fillStyle = '#000';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-            if (isDead) {
-                ctx.beginPath();
-                ctx.arc(startZone.x, startZone.y, startZone.radius, 0, Math.PI * 2);
-                ctx.strokeStyle = '#333';
-                ctx.stroke();
+            if (isDead || !gameStarted) {
+                ctx.beginPath(); ctx.arc(startZone.x, startZone.y, startZone.radius, 0, Math.PI*2);
+                ctx.strokeStyle = '#333'; ctx.setLineDash([5, 5]); ctx.stroke(); ctx.setLineDash([]);
+                if (isDead) drawArrow(mousePos.x, mousePos.y, startZone.x, startZone.y);
             }
 
             if (sonarActive) {
-                ctx.beginPath();
-                ctx.arc(mousePos.x, mousePos.y, sonarRadius, 0, Math.PI * 2);
-                ctx.strokeStyle = `rgba(0, 150, 255, ${1 - (sonarRadius / SONAR_MAX_RADIUS)})`;
-                ctx.stroke();
-
+                ctx.beginPath(); ctx.arc(mousePos.x, mousePos.y, sonarRadius, 0, Math.PI*2);
+                ctx.strokeStyle = `rgba(0, 150, 255, ${1 - sonarRadius/SONAR_MAX_RADIUS})`; ctx.stroke();
                 walls.forEach((w, i) => {
-                    const cx = Math.max(w.x, Math.min(mousePos.x, w.x + w.w));
-                    const cy = Math.max(w.y, Math.min(mousePos.y, w.y + w.h));
-                    if (Math.abs(Math.hypot(mousePos.x - cx, mousePos.y - cy) - sonarRadius) < 30) wallAlphaState[i] = 1.0;
+                    const cx = Math.max(w.x, Math.min(mousePos.x, w.x + w.w)), cy = Math.max(w.y, Math.min(mousePos.y, w.y + w.h));
+                    if (Math.abs(Math.hypot(mousePos.x - cx, mousePos.y - cy) - sonarRadius) < 20) wallAlphaState[i] = 1.0;
                 });
             }
 
             walls.forEach((w, i) => {
-                const alpha = levelCleared ? 0.2 : wallAlphaState[i];
-                if (alpha > 0) {
-                    ctx.fillStyle = `rgba(255, 255, 255, ${alpha * 0.3})`;
-                    ctx.fillRect(w.x, w.y, w.w, w.h);
-                    ctx.strokeStyle = `rgba(0, 200, 255, ${alpha})`;
-                    ctx.strokeRect(w.x, w.y, w.w, w.h);
+                const a = levelCleared ? 0.15 : wallAlphaState[i];
+                if (a > 0) {
+                    ctx.fillStyle = `rgba(255, 255, 255, ${a * 0.4})`; ctx.fillRect(w.x, w.y, w.w, w.h);
+                    ctx.strokeStyle = `rgba(0, 200, 255, ${a})`; ctx.strokeRect(w.x, w.y, w.w, w.h);
                 }
             });
 
             ctx.fillStyle = SPLAT_COLOR;
             splats.forEach(s => {
-                ctx.beginPath();
-                ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
-                ctx.fill();
+                ctx.beginPath(); ctx.arc(s.x, s.y, s.r, 0, Math.PI*2); ctx.fill();
+                for(let i=0; i<2; i++) {
+                    ctx.beginPath(); ctx.arc(s.x + (Math.random()-0.5)*15, s.y + (Math.random()-0.5)*15, s.r/3, 0, Math.PI*2); ctx.fill();
+                }
             });
 
-            ctx.fillStyle = GOAL_COLOR;
-            ctx.shadowBlur = 15;
-            ctx.shadowColor = GOAL_COLOR;
-            ctx.beginPath();
-            ctx.arc(goal.x, goal.y, goal.radius, 0, Math.PI * 2);
-            ctx.fill();
-            ctx.shadowBlur = 0;
+            ctx.fillStyle = GOAL_COLOR; ctx.shadowBlur = 15; ctx.shadowColor = GOAL_COLOR;
+            ctx.beginPath(); ctx.arc(goal.x, goal.y, goal.radius, 0, Math.PI*2); ctx.fill(); ctx.shadowBlur = 0;
 
             ctx.fillStyle = isDead ? '#444' : '#fff';
-            ctx.beginPath();
-            ctx.arc(mousePos.x, mousePos.y, 4, 0, Math.PI * 2);
-            ctx.fill();
+            ctx.beginPath(); ctx.arc(mousePos.x, mousePos.y, 4, 0, Math.PI*2); ctx.fill();
 
             update();
             requestAnimationFrame(draw);
@@ -336,11 +306,7 @@
         window.addEventListener('mousemove', (e) => { mousePos.x = e.clientX; mousePos.y = e.clientY; });
         window.addEventListener('contextmenu', (e) => {
             e.preventDefault();
-            if (!isDead && sonarCooldown === 0) {
-                sonarActive = true;
-                sonarRadius = 0;
-                sonarCooldown = SONAR_COOLDOWN_TIME;
-            }
+            if (!isDead && sonarCooldown === 0) { sonarActive = true; sonarRadius = 0; sonarCooldown = SONAR_COOLDOWN_TIME; }
         });
         window.addEventListener('resize', resize);
         window.onload = () => { resize(); isDead = true; draw(); };
