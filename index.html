@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dark Maze - Reveal the Walls</title>
+    <title>Dark Maze - Find the Light</title>
     <style>
         body, html {
             margin: 0;
@@ -34,14 +34,15 @@
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
-            background: rgba(0, 0, 0, 0.85);
+            background: rgba(0, 0, 0, 0.9);
             color: white;
             padding: 20px 40px;
-            border: 2px solid #333;
+            border: 2px solid #444;
             border-radius: 10px;
             text-align: center;
             transition: opacity 0.5s;
             z-index: 100;
+            max-width: 400px;
         }
 
         .hidden {
@@ -68,6 +69,10 @@
 
         .sonar-ready { color: #00FF00; font-weight: bold; }
         .sonar-charging { color: #666; }
+        
+        h2 { color: #4CAF50; margin-top: 0; }
+        ul { text-align: left; padding-left: 20px; }
+        li { margin-bottom: 10px; }
     </style>
 </head>
 <body>
@@ -80,10 +85,16 @@
 
     <div id="message-box">
         <div id="tutorial">
-            <h2>Welcome to the Darkness</h2>
-            <p>Hitting walls releases <strong>sticky red dots</strong>.</p>
-            <p>Use them to map out the invisible maze.</p>
-            <p style="color: #4CAF50;">Return to the top-left circle to start.</p>
+            <h2>Spielanleitung</h2>
+            <ul>
+                <li><strong>Start:</strong> Bewege den weißen Punkt in den gestrichelten Kreis (oben links).</li>
+                <li><strong>Ziel:</strong> Erreiche den leuchtenden grünen Punkt (unten rechts).</li>
+                <li><strong>Wände:</strong> Sie sind unsichtbar. Berührst du eine Wand oder den Rand, stirbst du.</li>
+                <li><strong>Sonar (Rechtsklick):</strong> Macht Wände kurz sichtbar. (10 Sek. Abklingzeit).</li>
+                <li><strong>Rote Punkte:</strong> Beim Aufprall entstehen Splitter. Diese bleiben an Wänden kleben und helfen dir, den Weg zu finden.</li>
+                <li><strong>Wichtig:</strong> Bewege dich langsam, um nicht versehentlich durch Wände zu springen.</li>
+            </ul>
+            <p style="color: #4CAF50; font-weight: bold;">Suche den grauen Punkt und fahre zum Start-Kreis!</p>
         </div>
     </div>
 
@@ -257,8 +268,8 @@
         function update() {
             if (sonarCooldown > 0) {
                 sonarCooldown--;
-                abilityBar.innerHTML = `<span class="sonar-charging">Sonar Recharging: ${Math.floor((1 - sonarCooldown/600)*100)}%</span>`;
-                if (sonarCooldown === 0) abilityBar.innerHTML = '<span class="sonar-ready">Sonar Ready: [Right Click]</span>';
+                abilityBar.innerHTML = `<span class="sonar-charging">Sonar lädt: ${Math.floor((1 - sonarCooldown/600)*100)}%</span>`;
+                if (sonarCooldown === 0) abilityBar.innerHTML = '<span class="sonar-ready">Sonar bereit: [Rechtsklick]</span>';
             }
             if (sonarActive) {
                 sonarRadius += SONAR_SPEED;
@@ -272,15 +283,11 @@
                     s.y += s.vy;
                     s.vy += GRAVITY;
                     s.vx *= 0.99;
-
-                    // Check if shrapnel hits a wall to stick to it
                     const hit = walls.some(w => s.x > w.x && s.x < w.x + w.w && s.y > w.y && s.y < w.y + w.h)
                                 || s.x < 2 || s.x > canvas.width-2 || s.y < 2 || s.y > canvas.height-2;
-                    
                     if (hit || s.y > canvas.height - 5) {
                         s.settled = true;
-                        s.vx = 0;
-                        s.vy = 0;
+                        s.vx = 0; s.vy = 0;
                     }
                 }
             });
@@ -296,10 +303,10 @@
                 if (collision.hit) {
                     spawnShrapnel(collision.x, collision.y);
                     isDead = true; 
-                    messageBox.innerHTML = "<h2>You Died!</h2><p>Marker placed.</p><p>Return to start.</p>"; 
+                    messageBox.innerHTML = "<h2>Tot!</h2><p>Markierung gesetzt.</p><p>Gehe zurück zum Start-Kreis.</p>"; 
                     messageBox.classList.remove('hidden');
                 } else if (Math.hypot(mousePos.x - goal.x, mousePos.y - goal.y) < goal.radius) {
-                    levelCleared = true; isDead = true; messageBox.innerHTML = "<h2>Level Clear!</h2><p>Return to start.</p>"; messageBox.classList.remove('hidden');
+                    levelCleared = true; isDead = true; messageBox.innerHTML = "<h2>Level geschafft!</h2><p>Gehe zum Start für das nächste Level.</p>"; messageBox.classList.remove('hidden');
                 }
                 lastProcessedPos = { ...mousePos };
             }
@@ -334,16 +341,15 @@
 
             ctx.fillStyle = SPLAT_COLOR;
             splats.forEach(s => {
-                ctx.beginPath(); 
-                ctx.arc(s.x, s.y, s.r, 0, Math.PI*2); 
-                ctx.fill();
+                ctx.beginPath(); ctx.arc(s.x, s.y, s.r, 0, Math.PI*2); ctx.fill();
             });
 
             ctx.fillStyle = GOAL_COLOR; ctx.shadowBlur = 15; ctx.shadowColor = GOAL_COLOR;
             ctx.beginPath(); ctx.arc(goal.x, goal.y, goal.radius, 0, Math.PI*2); ctx.fill(); ctx.shadowBlur = 0;
 
-            ctx.fillStyle = isDead ? '#444' : '#fff';
-            ctx.beginPath(); ctx.arc(mousePos.x, mousePos.y, 4, 0, Math.PI*2); ctx.fill();
+            // Zeiger-Farbe: Hellgrau im Tutorial, Weiß im Spiel
+            ctx.fillStyle = !gameStarted ? '#888' : (isDead ? '#555' : '#fff');
+            ctx.beginPath(); ctx.arc(mousePos.x, mousePos.y, 5, 0, Math.PI*2); ctx.fill();
 
             update();
             requestAnimationFrame(draw);
