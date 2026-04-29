@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dark Maze - Shrapnel Effect</title>
+    <title>Dark Maze - Reveal the Walls</title>
     <style>
         body, html {
             margin: 0;
@@ -81,8 +81,8 @@
     <div id="message-box">
         <div id="tutorial">
             <h2>Welcome to the Darkness</h2>
-            <p>Watch out for the <strong>shrapnel splats</strong> when you hit a wall.</p>
-            <p>Gravity is pulling them down.</p>
+            <p>Hitting walls releases <strong>sticky red dots</strong>.</p>
+            <p>Use them to map out the invisible maze.</p>
             <p style="color: #4CAF50;">Return to the top-left circle to start.</p>
         </div>
     </div>
@@ -90,9 +90,6 @@
     <canvas id="gameCanvas"></canvas>
 
     <script>
-        /**
-         * GAME LOGIC: DARK MAZE WITH SHRAPNEL PHYSICS
-         */
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
         const levelIndicator = document.getElementById('level-indicator');
@@ -106,7 +103,7 @@
         let mousePos = { x: 0, y: 0 };
         let lastProcessedPos = { x: 0, y: 0 };
         
-        let splats = []; // Speichert jetzt Objekte mit Position und Geschwindigkeit
+        let splats = []; 
         let walls = []; 
         let goal = { x: 0, y: 0, radius: 15 };
         let startZone = { x: 50, y: 50, radius: 40 };
@@ -117,15 +114,12 @@
         let sonarCooldown = 0;
         const SONAR_MAX_RADIUS = 1000;
         const SONAR_SPEED = 10;
-        const SONAR_COOLDOWN_TIME = 600; // 10 Sekunden
+        const SONAR_COOLDOWN_TIME = 600; 
         let wallAlphaState = [];
 
         const GRAVITY = 0.15;
         const SPLAT_COLOR = 'rgba(200, 0, 0, 0.7)';
 
-        /**
-         * KOMPLEXER MAZE GENERATOR (Recursive Backtracking)
-         */
         class MazeGenerator {
             constructor(cols, rows) {
                 this.cols = cols;
@@ -231,10 +225,10 @@
                 splats.push({
                     x: x,
                     y: y,
-                    vx: (Math.random() - 0.5) * 8,
-                    vy: (Math.random() - 0.8) * 10,
-                    r: 5 + Math.random() * 5,
-                    active: true
+                    vx: (Math.random() - 0.5) * 6,
+                    vy: (Math.random() - 0.7) * 8,
+                    r: 4 + Math.random() * 4,
+                    settled: false
                 });
             }
         }
@@ -261,7 +255,6 @@
         }
 
         function update() {
-            // Sonar Logic
             if (sonarCooldown > 0) {
                 sonarCooldown--;
                 abilityBar.innerHTML = `<span class="sonar-charging">Sonar Recharging: ${Math.floor((1 - sonarCooldown/600)*100)}%</span>`;
@@ -273,20 +266,25 @@
             }
             wallAlphaState = wallAlphaState.map(a => Math.max(0, a - 0.015));
 
-            // Splat/Shrapnel Physics
             splats.forEach(s => {
-                if (s.active) {
+                if (!s.settled) {
                     s.x += s.vx;
                     s.y += s.vy;
-                    s.vy += GRAVITY; // Schwerkraft
-                    s.vx *= 0.98;    // Reibung
+                    s.vy += GRAVITY;
+                    s.vx *= 0.99;
+
+                    // Check if shrapnel hits a wall to stick to it
+                    const hit = walls.some(w => s.x > w.x && s.x < w.x + w.w && s.y > w.y && s.y < w.y + w.h)
+                                || s.x < 2 || s.x > canvas.width-2 || s.y < 2 || s.y > canvas.height-2;
                     
-                    // Stop, wenn sie aus dem Bild fallen oder sehr langsam werden
-                    if (s.y > canvas.height) s.active = false;
+                    if (hit || s.y > canvas.height - 5) {
+                        s.settled = true;
+                        s.vx = 0;
+                        s.vy = 0;
+                    }
                 }
             });
 
-            // Gameplay Logic
             if (isDead) {
                 if (Math.hypot(mousePos.x - startZone.x, mousePos.y - startZone.y) < startZone.radius) {
                     if (levelCleared) { currentLevel++; splats = []; setupLevel(); levelCleared = false; }
@@ -298,7 +296,7 @@
                 if (collision.hit) {
                     spawnShrapnel(collision.x, collision.y);
                     isDead = true; 
-                    messageBox.innerHTML = "<h2>You Died!</h2><p>Wall impact detected.</p><p>Return to start.</p>"; 
+                    messageBox.innerHTML = "<h2>You Died!</h2><p>Marker placed.</p><p>Return to start.</p>"; 
                     messageBox.classList.remove('hidden');
                 } else if (Math.hypot(mousePos.x - goal.x, mousePos.y - goal.y) < goal.radius) {
                     levelCleared = true; isDead = true; messageBox.innerHTML = "<h2>Level Clear!</h2><p>Return to start.</p>"; messageBox.classList.remove('hidden');
@@ -334,7 +332,6 @@
                 }
             });
 
-            // Zeichne Schrapnelle
             ctx.fillStyle = SPLAT_COLOR;
             splats.forEach(s => {
                 ctx.beginPath(); 
