@@ -206,6 +206,7 @@
                                 <option value="level">Highest Level</option>
                                 <option value="rarity">Rarity</option>
                                 <option value="name">Name A-Z</option>
+                                <option value="levelup">Nearest Level Up</option>
                             </select>
                             <span id="inventory-count" class="text-sm bg-slate-700 px-2 py-1 rounded">0 Pets</span>
                         </div>
@@ -1336,6 +1337,13 @@
                     sortedInv.sort((a, b) => rarityLevels[b.petData.rarity] - rarityLevels[a.petData.rarity]);
                 } else if (this.sortType === 'name') {
                     sortedInv.sort((a, b) => a.petData.name.localeCompare(b.petData.name));
+                } else if (this.sortType === 'levelup') {
+                    // Sortiere nach fehlenden Erfahrungspunkten zum nächsten Level (wer am nächsten dran ist, kommt zuerst)
+                    sortedInv.sort((a, b) => {
+                        const missingA = a.petData.nextLevelXp - a.petData.xp;
+                        const missingB = b.petData.nextLevelXp - b.petData.xp;
+                        return missingA - missingB;
+                    });
                 }
                 
                 let fusionReadyCount = 0;
