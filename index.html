@@ -121,7 +121,7 @@
                 </button>
                 <div class="bg-slate-900 px-4 py-2 rounded-lg border border-slate-600 flex items-center gap-2">
                     <span class="text-emerald-400 font-bold">Balance:</span>
-                    <span id="player-balance" class="text-xl font-mono">149.99</span>
+                    <span id="player-balance" class="text-xl font-mono">30.00</span>
                     <span class="text-emerald-400">€</span>
                 </div>
                 <div class="bg-slate-900 px-4 py-2 rounded-lg border border-slate-600 flex items-center gap-2">
@@ -446,51 +446,51 @@
         const GameDatabase = {
             generateEgg: (index) => {
                 if (index === 0) {
-                    return new EggModel('egg_basic', 'Starter Egg', 49.99, 'Basic pets. Hatch Time: 3s.', 3, [
-                        new PetModel('e0_p1', 'Field Mouse', '🐭', 5499, 'Common', 1.5),
-                        new PetModel('e0_p2', 'Brown Dog', '🐶', 3001, 'Common', 2.5),
-                        new PetModel('e0_p3', 'Stray Cat', '🐱', 1050, 'Uncommon', 4.0),
-                        new PetModel('e0_p4', 'Pigeon', '🐦', 400, 'Uncommon', 7.5),
-                        new PetModel('e0_p5', 'Goldfish', '🐟', 50, 'Rare', 15.0)
+                    return new EggModel('egg_basic', 'Starter Egg', 29.99, 'Basic pets. Hatch Time: 3s.', 3, [
+                        new PetModel('e0_p1', 'Field Mouse', '🐭', 5499, 'Common', 0.05),
+                        new PetModel('e0_p2', 'Brown Dog', '🐶', 3001, 'Common', 0.08),
+                        new PetModel('e0_p3', 'Stray Cat', '🐱', 1050, 'Uncommon', 0.10),
+                        new PetModel('e0_p4', 'Pigeon', '🐦', 400, 'Uncommon', 0.06),
+                        new PetModel('e0_p5', 'Goldfish', '🐟', 50, 'Rare', 0.12)
                     ]);
                 }
                 if (index === 1) {
-                    return new EggModel('egg_rare', 'Forest Egg', 499.99, 'Rare forest animals. Hatch Time: 4.5s.', 4.5, [
-                        new PetModel('e1_p1', 'Red Fox', '🦊', 4550, 'Uncommon', 18),
-                        new PetModel('e1_p2', 'Brown Bear', '🐻', 2825, 'Rare', 30),
-                        new PetModel('e1_p3', 'Forest Owl', '🦉', 1750, 'Rare', 50),
-                        new PetModel('e1_p4', 'Wild Boar', '🐗', 750, 'Epic', 95),
-                        new PetModel('e1_p5', 'Green Frog', '🐸', 125, 'Epic', 180)
+                    return new EggModel('egg_rare', 'Forest Egg', 299.90, 'Rare forest animals. Hatch Time: 4.5s.', 4.5, [
+                        new PetModel('e1_p1', 'Red Fox', '🦊', 4550, 'Uncommon', 0.50),
+                        new PetModel('e1_p2', 'Brown Bear', '🐻', 2825, 'Rare', 0.80),
+                        new PetModel('e1_p3', 'Forest Owl', '🦉', 1750, 'Rare', 0.60),
+                        new PetModel('e1_p4', 'Wild Boar', '🐗', 750, 'Epic', 0.70),
+                        new PetModel('e1_p5', 'Green Frog', '🐸', 125, 'Epic', 0.45)
                     ]);
                 }
                 if (index === 2) {
-                    return new EggModel('egg_epic', 'Mystic Egg', 4999.99, 'Epic beasts and a secret. Hatch Time: 6s.', 6, [
-                        new PetModel('e2_p1', 'Savannah Lion', '🦁', 5099, 'Rare', 150),
-                        new PetModel('e2_p2', 'Jungle Tiger', '🐯', 2555, 'Epic', 280),
-                        new PetModel('e2_p3', 'Giant Elephant', '🐘', 1520, 'Epic', 500),
-                        new PetModel('e2_p4', 'Rhino', '🦏', 650, 'Legendary', 900),
-                        new PetModel('e2_p5', 'Hippopotamus', '🦛', 165, 'Legendary', 1800),
-                        new PetModel('e2_secret', 'Ancient Dragon', '🐉', 11, 'Secret', 6000) 
+                    return new EggModel('egg_epic', 'Mystic Egg', 999.90, 'Epic beasts and a secret. Hatch Time: 6s.', 6, [
+                        new PetModel('e2_p1', 'Savannah Lion', '🦁', 5099, 'Rare', 2.50),
+                        new PetModel('e2_p2', 'Jungle Tiger', '🐯', 2555, 'Epic', 2.80),
+                        new PetModel('e2_p3', 'Giant Elephant', '🐘', 1520, 'Epic', 3.00),
+                        new PetModel('e2_p4', 'Rhino', '🦏', 650, 'Legendary', 2.70),
+                        new PetModel('e2_p5', 'Hippopotamus', '🦛', 165, 'Legendary', 2.60),
+                        new PetModel('e2_secret', 'Ancient Dragon', '🐉', 11, 'Secret', 15.00) 
                     ]);
                 }
                 if (index === 3) {
-                    return new EggModel('egg_ocean', 'Ocean Egg', 49999.99, 'Deep sea creatures. Hatch Time: 8s.', 8, [
-                        new PetModel('e3_p1', 'Sea Turtle', '🐢', 5545, 'Epic', 1500),
-                        new PetModel('e3_p2', 'Dolphin', '🐬', 2888, 'Epic', 2800),
-                        new PetModel('e3_p3', 'Shark', '🦈', 1111, 'Legendary', 5000),
-                        new PetModel('e3_p4', 'Whale', '🐳', 350, 'Mythic', 9000),
-                        new PetModel('e3_p5', 'Octopus', '🐙', 100, 'Mythic', 18000),
-                        new PetModel('e3_secret', 'Kraken', '🦑', 6, 'Secret', 50000)
+                    return new EggModel('egg_ocean', 'Ocean Egg', 4999.90, 'Deep sea creatures. Hatch Time: 8s.', 8, [
+                        new PetModel('e3_p1', 'Sea Turtle', '🐢', 5545, 'Epic', 5.50),
+                        new PetModel('e3_p2', 'Dolphin', '🐬', 2888, 'Epic', 6.00),
+                        new PetModel('e3_p3', 'Shark', '🦈', 1111, 'Legendary', 6.50),
+                        new PetModel('e3_p4', 'Whale', '🐳', 350, 'Mythic', 7.00),
+                        new PetModel('e3_p5', 'Octopus', '🐙', 100, 'Mythic', 5.80),
+                        new PetModel('e3_secret', 'Kraken', '🦑', 6, 'Secret', 35.00)
                     ]);
                 }
                 if (index === 4) {
-                    return new EggModel('egg_galactic', 'Galactic Egg', 499999.99, 'Cosmic entities. Hatch Time: 10s.', 10, [
-                        new PetModel('e4_p1', 'Alien', '👽', 6060, 'Legendary', 15000),
-                        new PetModel('e4_p2', 'Astronaut', '👨‍🚀', 2525, 'Legendary', 28000),
-                        new PetModel('e4_p3', 'Comet', '☄️', 1010, 'Mythic', 50000),
-                        new PetModel('e4_p4', 'UFO', '🛸', 300, 'Mythic', 90000),
-                        new PetModel('e4_p5', 'Star', '⭐', 100, 'Divine', 180000),
-                        new PetModel('e4_secret', 'Black Hole', '🌌', 5, 'Secret', 600000)
+                    return new EggModel('egg_galactic', 'Galactic Egg', 15000.00, 'Cosmic entities. Hatch Time: 10s.', 10, [
+                        new PetModel('e4_p1', 'Alien', '👽', 6060, 'Legendary', 15.00),
+                        new PetModel('e4_p2', 'Astronaut', '👨‍🚀', 2525, 'Legendary', 16.00),
+                        new PetModel('e4_p3', 'Comet', '☄️', 1010, 'Mythic', 14.00),
+                        new PetModel('e4_p4', 'UFO', '🛸', 300, 'Mythic', 18.00),
+                        new PetModel('e4_p5', 'Star', '⭐', 100, 'Divine', 17.00),
+                        new PetModel('e4_secret', 'Black Hole', '🌌', 5, 'Secret', 100.00)
                     ]);
                 }
 
@@ -503,18 +503,18 @@
                 const noun = nouns[(index * 7) % nouns.length];
                 const eggName = `${adj} Egg`;
                 
-                const cost = (5000000 * Math.pow(10, index - 5)) - 0.01; 
+                const cost = 15000.00 * Math.pow(5, index - 4); 
                 const hatchTime = Math.min(60, 10 + (index - 4) * 2.5); // Leicht ansteigender Cooldown, gekappt bei 60s
 
-                const petBaseIncome = 150000 * Math.pow(10, index - 4);
+                const petBaseIncome = 100.00 * Math.pow(4, index - 4);
 
                 const procPets = [
-                    new PetModel(`e${index}_p1`, `${adj} Minion`, emojis[(index*2)%emojis.length], 6000, 'Legendary', petBaseIncome),
-                    new PetModel(`e${index}_p2`, `${noun} Guard`, emojis[(index*4)%emojis.length], 2500, 'Legendary', petBaseIncome * 1.8),
-                    new PetModel(`e${index}_p3`, `${adj} ${noun}`, emojis[(index*5)%emojis.length], 1000, 'Mythic', petBaseIncome * 3.5),
-                    new PetModel(`e${index}_p4`, `True ${noun}`, emojis[(index*6)%emojis.length], 350, 'Mythic', petBaseIncome * 6.0),
-                    new PetModel(`e${index}_p5`, `Supreme ${adj}`, emojis[(index*8)%emojis.length], 145, 'Divine', petBaseIncome * 12.0),
-                    new PetModel(`e${index}_secret`, `The ${adj} ${noun}`, emojis[(index*9)%emojis.length], 5, 'Secret', petBaseIncome * 40.0)
+                    new PetModel(`e${index}_p1`, `${adj} Minion`, emojis[(index*2)%emojis.length], 6000, 'Legendary', petBaseIncome * 0.15),
+                    new PetModel(`e${index}_p2`, `${noun} Guard`, emojis[(index*4)%emojis.length], 2500, 'Legendary', petBaseIncome * 0.16),
+                    new PetModel(`e${index}_p3`, `${adj} ${noun}`, emojis[(index*5)%emojis.length], 1000, 'Mythic', petBaseIncome * 0.14),
+                    new PetModel(`e${index}_p4`, `True ${noun}`, emojis[(index*6)%emojis.length], 350, 'Mythic', petBaseIncome * 0.18),
+                    new PetModel(`e${index}_p5`, `Supreme ${adj}`, emojis[(index*8)%emojis.length], 145, 'Divine', petBaseIncome * 0.17),
+                    new PetModel(`e${index}_secret`, `The ${adj} ${noun}`, emojis[(index*9)%emojis.length], 5, 'Secret', petBaseIncome)
                 ];
 
                 return new EggModel(`egg_proc_${index}`, eggName, cost, `Infinite Tier ${index - 3} Egg. Hatch Time: ${hatchTime}s.`, hatchTime, procPets);
@@ -531,7 +531,7 @@
             }
 
             startSetup() {
-                this._balance = 150.00; // Genug um direkt 3 Eier zu testen
+                this._balance = 30.00;
                 this._inventory = [];
                 
                 this._totalIncomePerSec = 0;
@@ -546,15 +546,15 @@
                 this._eggs = [GameDatabase.generateEgg(0)];
 
                 this._upgrades = [
-                    new UpgradeModel('upg_income', 'Golden Touch', 'Increases all pet income by 10% per level.', 199.99, 2.0, 'income', 0.10),
-                    new UpgradeModel('upg_xp', 'Smart Pets', 'Increases all pet XP gain by 15% per level.', 249.99, 2.0, 'xp', 0.15),
-                    new UpgradeModel('upg_slots', 'Extra Super Slots', 'Unlocks an additional Super Pet Slot per level.', 1499.99, 4.0, 'slots', 1),
+                    new UpgradeModel('upg_income', 'Golden Touch', 'Increases all pet income by 15% per level.', 150, 1.8, 'income', 0.15),
+                    new UpgradeModel('upg_xp', 'Smart Pets', 'Increases all pet XP gain by 20% per level.', 200, 1.6, 'xp', 0.20),
+                    new UpgradeModel('upg_slots', 'Extra Super Slots', 'Unlocks an additional Super Pet Slot per level.', 800, 3.5, 'slots', 1),
                     new UpgradeModel('upg_hatch_speed', 'Fast Hatching', 'Reduces egg hatch cooldown times by 10% per level.', 999.99, 2.5, 'hatch_speed', 0.10, 10),
                     new UpgradeModel('upg_fusion_power', 'Fusion Mastery', 'Fused pets get an even higher income boost.', 2999.99, 3.5, 'fusion_power', 0.5, 5),
                     new UpgradeModel('upg_feature_clicker', 'Manual Clicker', 'Unlocks a button to manually click for money.', 499.99, 1, 'feature_clicker', 1, 1),
-                    new UpgradeModel('upg_auto_equip', 'Auto-Equip Feature', 'Unlocks the Auto-Equip button for Super Pets.', 1999.99, 1, 'feature_auto_equip', 1, 1),
-                    new UpgradeModel('upg_auto_trainer', 'Auto-Trainer', 'Permanently and automatically equips pets based on your strategy.', 4999.99, 1, 'feature_auto_trainer', 1, 1),
-                    new UpgradeModel('upg_auto_fill', 'Auto-Fill Feature', 'Unlocks the Auto-Fill button for the Fusion Shrine.', 3499.99, 1, 'feature_auto_fill', 1, 1)
+                    new UpgradeModel('upg_auto_equip', 'Auto-Equip Feature', 'Unlocks the Auto-Equip button for Super Pets.', 1000, 1, 'feature_auto_equip', 1, 1),
+                    new UpgradeModel('upg_auto_trainer', 'Auto-Trainer', 'Permanently and automatically equips pets based on your strategy.', 2500, 1, 'feature_auto_trainer', 1, 1),
+                    new UpgradeModel('upg_auto_fill', 'Auto-Fill Feature', 'Unlocks the Auto-Fill button for the Fusion Shrine.', 1500, 1, 'feature_auto_fill', 1, 1)
                 ];
                 
                 this._upgrades[0].unlocked = true;
