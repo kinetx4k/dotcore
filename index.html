@@ -379,7 +379,7 @@
                 this.baseIncome = baseIncome;
                 this.level = 1;
                 this.xp = 0;
-                this.nextLevelXp = 250; 
+                this.nextLevelXp = 100; // REDUZIERT für extrem schnelle Level-Ups
                 this.fusionLevel = 0;
             }
         }
@@ -528,6 +528,7 @@
             constructor() {
                 this.startSetup();
                 this._activeEggDisplay = null;
+                this._sortTimer = 0;
             }
 
             startSetup() {
@@ -698,10 +699,12 @@
                 }
 
                 let needsIncomeRecalc = false;
+                let needsReRender = false;
                 const xpMultiplier = this.getUpgradeMultiplier('xp');
 
                 this._inventory.forEach(item => {
-                    let xpToGive = 2 * fraction * xpMultiplier;
+                    // EXTREM SCHNELLES LEVELN
+                    let xpToGive = 15 * fraction * xpMultiplier; 
                     xpToGive *= (1 + item.petData.fusionLevel);
                     if (this._superPetUids.includes(item.uid)) xpToGive *= 3;
                     
@@ -710,8 +713,10 @@
                     if (item.petData.xp >= item.petData.nextLevelXp) {
                         item.petData.level++;
                         item.petData.xp -= item.petData.nextLevelXp;
-                        item.petData.nextLevelXp = Math.floor(item.petData.nextLevelXp * 2.0); 
+                        // Nur um den Faktor 1.4 erhöhen, damit es stetig sehr schnell bleibt
+                        item.petData.nextLevelXp = Math.floor(item.petData.nextLevelXp * 1.4); 
                         needsIncomeRecalc = true;
+                        needsReRender = true;
                     }
                 });
 
@@ -727,7 +732,20 @@
                     this.calculateTotalIncome();
                 }
                 
-                if (this._inventory.length > 0) {
+                // Automatisches Hintergrund-Sortieren für sehr flüssige Updates
+                this._sortTimer += fraction;
+                if (this._sortTimer >= 1.0) {
+                    this._sortTimer = 0;
+                    if (UI_System && ['levelup', 'income', 'level'].includes(UI_System.sortType)) {
+                        needsReRender = true;
+                    }
+                }
+
+                if (needsReRender) {
+                    GameEvents.emit('state_inventory_updated', this._inventory);
+                }
+                
+                if (this._inventory.length > 0 && !needsReRender) {
                     GameEvents.emit('state_pet_xp_smooth_update', this._inventory);
                 }
             }
@@ -760,6 +778,11 @@
 
             addPet(pet) {
                 const petCopy = JSON.parse(JSON.stringify(pet));
+                
+                // Füge eine zufällige Varianz von +/- 10% zum Basis-Einkommen hinzu!
+                const randomVariance = 0.9 + (Math.random() * 0.2); 
+                petCopy.baseIncome = petCopy.baseIncome * randomVariance;
+
                 const inventoryItem = {
                     uid: 'inv_' + Math.random().toString(36).substr(2, 9),
                     petData: petCopy,
