@@ -615,7 +615,7 @@
             After a countdown, some dots will flash.<br>
             Your job is simply to just count them.<br>
             Simply put: lock in.</p>
-            <div class="score-pill">YOUR AVG SCORE <span id="home-avg-score">--</span></div>
+            <div class="score-pill">YOUR ELO <span id="home-elo-score">--</span></div>
         </div>
 
         <div class="card-grid">
@@ -884,9 +884,10 @@
         };
 
         function updateHomeScore() {
-            if(UserProfile.history.length === 0) return;
-            const avg = UserProfile.history.reduce((a,b)=>a+b.accuracy, 0) / UserProfile.history.length;
-            document.getElementById('home-avg-score').textContent = `${avg.toFixed(1)}%`;
+            const eloDisplay = document.getElementById('home-elo-score');
+            if(eloDisplay) {
+                eloDisplay.textContent = UserProfile.elo;
+            }
         }
 
         // Profile View Logic
