@@ -246,6 +246,22 @@
             background: linear-gradient(var(--card-bg), var(--card-bg)) padding-box, linear-gradient(to right, #4ade80, #facc15) border-box;
             box-shadow: 0 4px 15px rgba(0,0,0,0.3);
         }
+        
+        /* Gesperrte Level Styles */
+        .diff-card.locked {
+            opacity: 0.5;
+            cursor: not-allowed;
+            pointer-events: none;
+            filter: grayscale(80%);
+        }
+        .diff-info.locked-info {
+            flex-direction: row;
+            align-items: center;
+        }
+        .lock-icon {
+            font-size: 1.8rem;
+            margin-right: 15px;
+        }
 
         .diff-info { display: flex; flex-direction: column; gap: 8px; }
         .diff-name { font-size: 1.3rem; font-weight: 800; }
@@ -918,7 +934,10 @@
         document.getElementById('nav-btn-stats').addEventListener('click', () => { renderStatsSummary(null, 0); showView('stats-view'); });
         document.getElementById('nav-btn-profile').addEventListener('click', () => showView('profile-view'));
         
-        document.getElementById('start-classic-card').addEventListener('click', () => showView('difficulty-view'));
+        document.getElementById('start-classic-card').addEventListener('click', () => { 
+            document.dispatchEvent(new Event('updateDifficultyMenu')); 
+            showView('difficulty-view'); 
+        });
         document.getElementById('start-daily-card').addEventListener('click', () => {
             showView('game-view');
             document.dispatchEvent(new Event('startDailyGame'));
@@ -1147,6 +1166,7 @@
             
             document.getElementById('stats-btn-again').style.display = sessionData ? 'inline-block' : 'none';
             document.getElementById('stats-btn-again').onclick = () => {
+                document.dispatchEvent(new Event('updateDifficultyMenu'));
                 showView('difficulty-view');
             };
 
@@ -1317,7 +1337,7 @@
                 this.bus = eventBus;
                 this.currentRound = 1;
                 this.maxRounds = 10;
-                this.currentDifficulty = DIFFICULTIES[2]; 
+                this.currentDifficulty = DIFFICULTIES[0]; // Start at Beginner by default now
                 this.actualDotCount = 0;
                 this.isPlaying = false;
                 this.rng = Math.random;
@@ -1492,29 +1512,79 @@
                 if(!diffList) return;
                 diffList.innerHTML = '';
                 
-                DIFFICULTIES.forEach(diff => {
+                // Beste Scores ermitteln, um Level freizuschalten
+                let bestAccs = {};
+                UserProfile.history.forEach(r => {
+                    if (!bestAccs[r.diffId] || r.accuracy > bestAccs[r.diffId]) {
+                        bestAccs[r.diffId] = r.accuracy;
+                    }
+                });
+
+                let highestUnlocked = 1;
+                
+                DIFFICULTIES.forEach((diff, index) => {
+                    let isLocked = false;
+                    
+                    // Man muss im vorherigen Modus mindestens 75% Genauigkeit haben
+                    if (diff.id > 1) {
+                        const prevBest = bestAccs[diff.id - 1] || 0;
+                        if (prevBest < 75) {
+                            isLocked = true;
+                        }
+                    }
+
+                    if (!isLocked) {
+                        highestUnlocked = diff.id;
+                    }
+
                     const card = document.createElement('div');
-                    card.className = `diff-card ${diff.id === 3 ? 'selected' : ''}`;
-                    card.innerHTML = `
-                        <div class="diff-info">
-                            <div class="diff-name" style="color: ${diff.color};">${diff.name}</div>
-                            <div class="diff-desc">${diff.desc}</div>
-                        </div>
-                        <div class="diff-stats">
-                            <div class="diff-range" style="color: ${diff.color};">${diff.minDots}-${diff.maxDots}</div>
-                            <div class="diff-time">${diff.showTimeMs / 1000} seconds <span class="diff-dot" style="background-color: ${diff.color};"></span></div>
-                        </div>
-                    `;
-                    card.onclick = () => {
-                        document.querySelectorAll('.diff-card').forEach(b => b.classList.remove('selected'));
-                        card.classList.add('selected');
-                        this.state.setDifficulty(diff.id);
-                    };
+                    card.className = `diff-card ${isLocked ? 'locked' : ''}`;
+                    
+                    if (isLocked) {
+                        card.innerHTML = `
+                            <div class="diff-info locked-info">
+                                <div class="lock-icon">🔒</div>
+                                <div>
+                                    <div class="diff-name" style="color: ${diff.color};">${diff.name}</div>
+                                    <div class="diff-desc">Score 75% in ${DIFFICULTIES[index-1].name} to unlock</div>
+                                </div>
+                            </div>
+                        `;
+                    } else {
+                        card.innerHTML = `
+                            <div class="diff-info">
+                                <div class="diff-name" style="color: ${diff.color};">${diff.name}</div>
+                                <div class="diff-desc">${diff.desc}</div>
+                            </div>
+                            <div class="diff-stats">
+                                <div class="diff-range" style="color: ${diff.color};">${diff.minDots}-${diff.maxDots}</div>
+                                <div class="diff-time">${diff.showTimeMs / 1000} seconds <span class="diff-dot" style="background-color: ${diff.color};"></span></div>
+                            </div>
+                        `;
+                        card.onclick = () => {
+                            document.querySelectorAll('.diff-card').forEach(b => b.classList.remove('selected'));
+                            card.classList.add('selected');
+                            this.state.setDifficulty(diff.id);
+                        };
+                    }
+                    
                     diffList.appendChild(card);
                 });
+
+                // Automatisch den höchsten freigeschalteten Modus markieren
+                const cards = diffList.querySelectorAll('.diff-card');
+                if(cards[highestUnlocked - 1]) {
+                    cards[highestUnlocked - 1].classList.add('selected');
+                    this.state.setDifficulty(highestUnlocked);
+                }
             }
 
             bindEvents() {
+                // Höre auf Updates für das Menü, damit Unlocks direkt sichtbar sind
+                document.addEventListener('updateDifficultyMenu', () => {
+                    this.setupDifficultyMenu();
+                });
+
                 document.addEventListener('startClassicGame', () => {
                     this.state.sessionHistory = [];
                     this.state.isDaily = false;
