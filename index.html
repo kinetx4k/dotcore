@@ -854,8 +854,8 @@
         const submitDailyScore = async (acc) => {
             if (!currentUser || !db) return;
             try {
-                const today = new Date();
-                const seedStr = `${today.getFullYear()}_${today.getMonth() + 1}_${today.getDate()}`;
+                // Ensure uniform date via UTC so PC and Mobile sync exactly
+                const seedStr = new Date().toISOString().split('T')[0];
                 const docRef = doc(db, 'artifacts', appId, 'public', 'data', `daily_${seedStr}`, currentUser.uid);
                 
                 await setDoc(docRef, {
@@ -863,7 +863,7 @@
                     photo: UserProfile.photo,
                     acc: acc,
                     timestamp: Date.now()
-                });
+                }, { merge: true }); // Merge ensures we don't wipe data accidentally
             } catch (e) {
                 console.error("Leaderboard Error", e);
             }
@@ -897,7 +897,7 @@
                     diff_5: diffBests[5],
                     diff_6: diffBests[6],
                     timestamp: Date.now()
-                });
+                }, { merge: true }); // Merge true keeps mobile/desktop combined smoothly
             } catch (e) {
                 console.error("Global Profile Save Error", e);
             }
@@ -934,6 +934,41 @@
             renderLeaderboard();
         });
 
+        // --- DAILY CHALLENGE COUNTDOWN LOGIC ---
+        let dailyTimerInterval = null;
+        function updateDailyCard() {
+            const card = document.getElementById('start-daily-card');
+            const h3 = card.querySelector('h3');
+            const p = card.querySelector('p');
+            const seedStr = new Date().toISOString().split('T')[0];
+
+            if (dailyTimerInterval) clearInterval(dailyTimerInterval);
+
+            if (UserProfile.lastDaily && UserProfile.lastDaily.date === seedStr) {
+                card.classList.add('disabled');
+                card.style.pointerEvents = 'none';
+                
+                dailyTimerInterval = setInterval(() => {
+                    const now = new Date();
+                    // Midnight in UTC
+                    const tomorrow = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1));
+                    const diff = tomorrow - now;
+                    
+                    const h = Math.floor(diff / (1000 * 60 * 60));
+                    const m = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+                    const s = Math.floor((diff % (1000 * 60)) / 1000);
+                    
+                    h3.textContent = "Done for today!";
+                    p.textContent = `Next daily in: ${h.toString().padStart(2,'0')}:${m.toString().padStart(2,'0')}:${s.toString().padStart(2,'0')}`;
+                }, 1000);
+            } else {
+                card.classList.remove('disabled');
+                card.style.pointerEvents = 'auto';
+                h3.textContent = "Daily Challenge";
+                p.textContent = "One seeded round per day. Globally shared. Shareable result.";
+            }
+        }
+
 
         /**
          * ---------------------------------------------------------
@@ -945,12 +980,13 @@
             photo: "", 
             elo: 1000,
             history: [], 
-            lastDaily: null, // Tracks local daily score
+            lastDaily: null, 
             
             save() {
                 localStorage.setItem('dotcore_profile', JSON.stringify({name: this.name, photo: this.photo, elo: this.elo, lastDaily: this.lastDaily}));
                 localStorage.setItem('dotcore_history', JSON.stringify(this.history));
                 updateHomeScore();
+                updateDailyCard();
                 saveGlobalProfile(); 
             },
             load() {
@@ -959,6 +995,7 @@
                 const h = JSON.parse(localStorage.getItem('dotcore_history'));
                 if (h) this.history = h;
                 updateHomeScore();
+                updateDailyCard();
             },
             addRoundResult(actual, guess, accuracy, diffId) {
                 this.history.push({ actual, guess, accuracy, diffId });
@@ -1013,8 +1050,7 @@
             const category = document.getElementById('leaderboard-category').value;
             list.innerHTML = '<div style="color:var(--text-muted); text-align:center;">Loading Players...</div>';
             
-            const today = new Date();
-            const seedStr = `${today.getFullYear()}_${today.getMonth() + 1}_${today.getDate()}`;
+            const seedStr = new Date().toISOString().split('T')[0];
 
             let players = [];
             
@@ -1340,8 +1376,7 @@
                         const avgAcc = this.sessionHistory.reduce((a,b)=>a+b.accuracy, 0) / this.sessionHistory.length;
                         
                         // Speichere Daily Score Lokal für sofortiges Feedback
-                        const today = new Date();
-                        const seedStr = `${today.getFullYear()}_${today.getMonth() + 1}_${today.getDate()}`;
+                        const seedStr = new Date().toISOString().split('T')[0];
                         UserProfile.lastDaily = { date: seedStr, acc: avgAcc };
                         UserProfile.save();
 
@@ -1493,8 +1528,9 @@
                 document.addEventListener('startDailyGame', () => {
                     this.state.sessionHistory = [];
                     this.state.isDaily = true;
+                    
                     const today = new Date();
-                    const seed = today.getFullYear() * 10000 + (today.getMonth() + 1) * 100 + today.getDate();
+                    const seed = today.getUTCFullYear() * 10000 + (today.getUTCMonth() + 1) * 100 + today.getUTCDate();
                     const seededRng = mulberry32(seed);
                     
                     this.state.rng = seededRng;
