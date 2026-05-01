@@ -517,6 +517,8 @@
             text-align: center;
             font-size: 0.9rem;
             object-fit: cover;
+            background-size: cover;
+            background-position: center;
         }
         .input-group {
             width: 100%;
@@ -543,10 +545,12 @@
         }
         .stats-cards {
             display: flex;
+            flex-wrap: wrap;
             gap: 20px;
         }
         .stat-card {
             flex: 1;
+            min-width: 120px;
             background: var(--card-bg);
             border: 1px solid var(--card-border);
             border-radius: 12px;
@@ -621,7 +625,6 @@
                 <p>10 rounds, choose your difficulty. Your bread and butter.</p>
             </div>
 
-            <!-- FREE Badge entfernt wie gewünscht -->
             <div class="game-card" id="start-daily-card">
                 <div class="card-tag">DAILY</div>
                 <h3>Daily Challenge</h3>
@@ -644,7 +647,7 @@
             <p style="color: var(--text-muted);">Top players of today's challenge</p>
         </div>
         <div class="leaderboard" id="leaderboard-list">
-            <!-- Dynamically populated -->
+            <div style="color:var(--text-muted); text-align:center;">Loading Real Players...</div>
         </div>
     </div>
 
@@ -664,6 +667,10 @@
                 <div class="stat-card">
                     <div class="stat-card-val" id="stat-best" style="color: var(--success-color);">0.0%</div>
                     <div class="stat-card-label">BEST ROUND</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-card-val" id="stat-elo" style="color: #a855f7;">1000</div>
+                    <div class="stat-card-label">YOUR ELO</div>
                 </div>
                 <div class="stat-card">
                     <div class="stat-card-val" id="stat-rounds" style="color: white;">0</div>
@@ -768,7 +775,57 @@
         
     </div>
 
-    <script>
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, getDocs, setDoc, doc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // --- FIREBASE INIT ---
+        let db, auth, currentUser;
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'dotcore-default';
+
+        const initFirebase = async () => {
+            if (typeof __firebase_config !== 'undefined') {
+                const firebaseConfig = JSON.parse(__firebase_config);
+                const app = initializeApp(firebaseConfig);
+                auth = getAuth(app);
+                db = getFirestore(app);
+
+                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                    await signInWithCustomToken(auth, __initial_auth_token);
+                } else {
+                    await signInAnonymously(auth);
+                }
+
+                onAuthStateChanged(auth, (user) => {
+                    currentUser = user;
+                    if (user && document.getElementById('ranks-view').style.display === 'flex') {
+                        renderLeaderboard();
+                    }
+                });
+            }
+        };
+        initFirebase();
+
+        const submitDailyScore = async (acc) => {
+            if (!currentUser || !db) return;
+            try {
+                // Determine today's challenge seed for document grouping (optional, but good for real apps)
+                const today = new Date();
+                const seedStr = `${today.getFullYear()}_${today.getMonth() + 1}_${today.getDate()}`;
+                const docRef = doc(db, 'artifacts', appId, 'public', 'data', `daily_${seedStr}`, currentUser.uid);
+                
+                await setDoc(docRef, {
+                    name: UserProfile.name,
+                    photo: UserProfile.photo,
+                    acc: acc,
+                    timestamp: Date.now()
+                });
+            } catch (e) {
+                console.error("Leaderboard Error", e);
+            }
+        };
+
         // --- NAVIGATION & VIEW LOGIK ---
         const views = ['main-menu', 'difficulty-view', 'game-view', 'ranks-view', 'stats-view', 'profile-view'];
         
@@ -779,7 +836,6 @@
             });
         };
 
-        // Event Listener für Navigation (Behebt TypeError)
         document.getElementById('global-logo').addEventListener('click', () => showView('main-menu'));
         document.getElementById('nav-btn-ranks').addEventListener('click', () => { renderLeaderboard(); showView('ranks-view'); });
         document.getElementById('nav-btn-stats').addEventListener('click', () => { renderStatsSummary(); showView('stats-view'); });
@@ -800,22 +856,23 @@
 
         /**
          * ---------------------------------------------------------
-         * PROFILE & STATS DATA MANAGEMENT
+         * PROFILE & STATS DATA MANAGEMENT WITH ELO
          * ---------------------------------------------------------
          */
         const UserProfile = {
             name: "Player1",
             photo: "", // Base64
+            elo: 1000,
             history: [], // Stores objects { round, actual, guess, accuracy }
             
             save() {
-                localStorage.setItem('dotcore_profile', JSON.stringify({name: this.name, photo: this.photo}));
+                localStorage.setItem('dotcore_profile', JSON.stringify({name: this.name, photo: this.photo, elo: this.elo}));
                 localStorage.setItem('dotcore_history', JSON.stringify(this.history));
                 updateHomeScore();
             },
             load() {
                 const p = JSON.parse(localStorage.getItem('dotcore_profile'));
-                if (p) { this.name = p.name || "Player1"; this.photo = p.photo || ""; }
+                if (p) { this.name = p.name || "Player1"; this.photo = p.photo || ""; this.elo = p.elo || 1000; }
                 const h = JSON.parse(localStorage.getItem('dotcore_history'));
                 if (h) this.history = h;
                 updateHomeScore();
@@ -867,50 +924,63 @@
             profilePreview.innerHTML = "";
         }
 
-        // Ranks View Logic
-        function renderLeaderboard() {
+        // Ranks View Logic (Real Database)
+        async function renderLeaderboard() {
             const list = document.getElementById('leaderboard-list');
-            list.innerHTML = '';
+            list.innerHTML = '<div style="color:var(--text-muted); text-align:center;">Loading Real Players...</div>';
             
-            // Dummy Data + Current User
-            const players = [
-                { name: "AimGod_99", acc: 98.4, img: "" },
-                { name: "DotCounter", acc: 95.1, img: "" },
-                { name: "SpeedyMath", acc: 92.5, img: "" },
-                { name: "AverageJoe", acc: 75.0, img: "" },
-                { name: UserProfile.name, acc: (UserProfile.history.length > 0 ? UserProfile.history[UserProfile.history.length-1].accuracy : 0), img: UserProfile.photo, isMe: true }
-            ];
-            
-            // Filter 0 accuracy dummy
-            let sorted = players.filter(p => p.acc > 0).sort((a,b) => b.acc - a.acc);
-            
-            if(sorted.length === 0) {
-                list.innerHTML = '<div style="color:var(--text-muted); text-align:center;">No runs completed today.</div>';
+            if (!currentUser || !db) {
+                list.innerHTML = '<div style="color:#ef4444; text-align:center;">Could not connect to leaderboard.</div>';
                 return;
             }
 
-            sorted.forEach((p, idx) => {
-                const row = document.createElement('div');
-                row.className = 'rank-item';
-                if(p.isMe) row.style.backgroundColor = 'rgba(124, 58, 237, 0.1)';
+            try {
+                const today = new Date();
+                const seedStr = `${today.getFullYear()}_${today.getMonth() + 1}_${today.getDate()}`;
                 
-                const imgStyle = p.img ? `background-image: url(${p.img});` : '';
+                // Fetch real players from Firestore
+                const querySnapshot = await getDocs(collection(db, 'artifacts', appId, 'public', 'data', `daily_${seedStr}`));
+                let players = [];
+                querySnapshot.forEach((doc) => {
+                    players.push({ id: doc.id, ...doc.data() });
+                });
                 
-                row.innerHTML = `
-                    <div class="rank-pos">#${idx+1}</div>
-                    <div class="rank-name">
-                        <div class="rank-img" style="${imgStyle}"></div>
-                        <span style="${p.isMe ? 'color: var(--accent-color); font-weight: bold;' : ''}">${p.name} ${p.isMe ? '(You)' : ''}</span>
-                    </div>
-                    <div class="rank-score">${p.acc.toFixed(1)}%</div>
-                `;
-                list.appendChild(row);
-            });
+                // Sort by accuracy (Highest First)
+                players.sort((a,b) => b.acc - a.acc);
+                
+                if(players.length === 0) {
+                    list.innerHTML = '<div style="color:var(--text-muted); text-align:center;">No runs completed today. Be the first!</div>';
+                    return;
+                }
+
+                list.innerHTML = '';
+                players.forEach((p, idx) => {
+                    const isMe = p.id === currentUser.uid;
+                    const row = document.createElement('div');
+                    row.className = 'rank-item';
+                    if(isMe) row.style.backgroundColor = 'rgba(124, 58, 237, 0.1)';
+                    
+                    const imgStyle = p.photo ? `background-image: url(${p.photo});` : '';
+                    
+                    row.innerHTML = `
+                        <div class="rank-pos">#${idx+1}</div>
+                        <div class="rank-name">
+                            <div class="rank-img" style="${imgStyle}"></div>
+                            <span style="${isMe ? 'color: var(--accent-color); font-weight: bold;' : ''}">${p.name || 'Anonymous'} ${isMe ? '(You)' : ''}</span>
+                        </div>
+                        <div class="rank-score">${p.acc.toFixed(1)}%</div>
+                    `;
+                    list.appendChild(row);
+                });
+            } catch(e) {
+                console.error("Failed fetching leaderboard", e);
+                list.innerHTML = '<div style="color:#ef4444; text-align:center;">Error loading leaderboard.</div>';
+            }
         }
 
-        // Stats View Logic
+        // Stats View Logic (Includes ELO calculation)
         function renderStatsSummary(sessionData = null) {
-            const historyToUse = sessionData ? sessionData : UserProfile.history;
+            const historyToUse = sessionData ? sessionData.history : UserProfile.history;
             const bdContainer = document.getElementById('stats-breakdown');
             bdContainer.innerHTML = '';
 
@@ -925,6 +995,7 @@
             if(historyToUse.length === 0) {
                 document.getElementById('stat-avg').textContent = "0.0%";
                 document.getElementById('stat-best').textContent = "0.0%";
+                document.getElementById('stat-elo').textContent = UserProfile.elo;
                 document.getElementById('stat-rounds').textContent = "0";
                 bdContainer.innerHTML = '<div style="text-align:center; color: var(--text-muted); font-size: 0.9rem;">Play a game to see round breakdowns here.</div>';
                 return;
@@ -961,6 +1032,23 @@
             document.getElementById('stat-avg').textContent = `${avg.toFixed(1)}%`;
             document.getElementById('stat-best').textContent = `${bestAcc.toFixed(1)}%`;
             document.getElementById('stat-rounds').textContent = historyToUse.length;
+
+            // ELO Logic
+            let eloChangeText = '';
+            if (sessionData && !sessionData.isDaily) {
+                // Calculate ELO based on accuracy and difficulty modifier
+                const diffMultiplier = [0.5, 0.8, 1, 1.2, 1.5, 2][sessionData.difficultyId - 1] || 1;
+                // Target accuracy to gain ELO is 75%. Below 75% loses ELO.
+                const eloChange = Math.round((avg - 75) * diffMultiplier * 2);
+                
+                UserProfile.elo = Math.max(0, UserProfile.elo + eloChange); // No negative ELO
+                UserProfile.save();
+                
+                const sign = eloChange >= 0 ? '+' : '';
+                eloChangeText = ` (${sign}${eloChange})`;
+            }
+
+            document.getElementById('stat-elo').textContent = `${UserProfile.elo}${eloChangeText}`;
         }
 
 
@@ -1104,8 +1192,18 @@
             nextRound() {
                 this.currentRound++;
                 if(this.currentRound > this.maxRounds) {
-                    // Game Over - Show Stats View for this session
-                    renderStatsSummary(this.sessionHistory);
+                    
+                    if(this.isDaily) {
+                        const avgAcc = this.sessionHistory.reduce((a,b)=>a+b.accuracy, 0) / this.sessionHistory.length;
+                        submitDailyScore(avgAcc);
+                    }
+
+                    // Game Over - Show Stats View for this session with History AND Difficulty ID
+                    renderStatsSummary({ 
+                        history: this.sessionHistory, 
+                        difficultyId: this.currentDifficulty.id,
+                        isDaily: this.isDaily
+                    });
                     showView('stats-view');
                 } else {
                     this.startRound();
