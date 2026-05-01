@@ -19,6 +19,19 @@
             --success-color: #facc15; /* Yellow for accuracy */
             --font-main: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             --font-mono: 'Courier New', Courier, monospace;
+            
+            /* Rank Colors */
+            --rank-beginner: #94a3b8;
+            --rank-bronze: #cd7f32;
+            --rank-silver: #c0c0c0;
+            --rank-gold: #ffd700;
+            --rank-platinum: #e5e4e2;
+            --rank-diamond: #b9f2ff;
+            --rank-expert: #4ade80;
+            --rank-master: #f472b6;
+            --rank-champion: #fb7185;
+            --rank-legend: #facc15;
+            --rank-god: #ffffff;
         }
 
         body {
@@ -98,6 +111,13 @@
         .nav-btn:hover {
             background-color: var(--card-hover);
             color: white;
+        }
+
+        /* Spezial Styling für den Rank Button */
+        #nav-btn-ranks {
+            border-color: var(--accent-color);
+            color: white;
+            font-weight: bold;
         }
 
         .hero-section {
@@ -484,41 +504,185 @@
             margin: 0 0 10px 0;
         }
 
-        /* RANKS */
-        .rank-select {
-            background: #0b0e14;
-            color: white;
-            border: 1px solid var(--card-border);
-            padding: 10px 15px;
-            border-radius: 6px;
-            font-size: 1rem;
-            margin-top: 15px;
+        /* RANKS STYLES */
+        .rank-display-container {
             width: 100%;
-            max-width: 300px;
-            cursor: pointer;
-            outline: none;
-        }
-
-        .leaderboard {
-            width: 100%;
-            max-width: 600px;
+            max-width: 800px;
             background: var(--card-bg);
             border: 1px solid var(--card-border);
             border-radius: 12px;
-            padding: 20px;
-        }
-        .rank-item {
+            padding: 30px;
             display: flex;
-            justify-content: space-between;
-            padding: 15px;
-            border-bottom: 1px solid var(--card-border);
+            flex-direction: column;
             align-items: center;
+            gap: 25px;
+            margin-bottom: 30px;
         }
-        .rank-item:last-child { border-bottom: none; }
-        .rank-pos { font-weight: bold; color: var(--accent-color); width: 40px;}
-        .rank-name { flex-grow: 1; display: flex; align-items: center; gap: 15px;}
-        .rank-img { width: 30px; height: 30px; border-radius: 50%; background: #333; object-fit: cover; }
-        .rank-score { font-family: var(--font-mono); font-weight: bold; color: var(--success-color);}
+
+        .rank-icon-large {
+            width: 120px;
+            height: 120px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 3.5rem;
+            background: #1a1e28;
+            border-radius: 50%;
+            border: 4px solid var(--accent-color);
+            box-shadow: 0 0 30px rgba(124, 58, 237, 0.3);
+        }
+
+        .rank-name-main {
+            font-size: 2.2rem;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 3px;
+        }
+
+        .rank-rp-text {
+            font-family: var(--font-mono);
+            color: var(--text-muted);
+            font-size: 1.4rem;
+        }
+
+        .rank-progress-bar-container {
+            width: 100%;
+            height: 14px;
+            background: #1a1e28;
+            border-radius: 7px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .rank-progress-bar-fill {
+            height: 100%;
+            background: linear-gradient(to right, var(--accent-color), #4ade80);
+            width: 0%;
+            transition: width 1.2s cubic-bezier(0.17, 0.67, 0.83, 0.67);
+        }
+
+        .rank-next-text {
+            font-size: 0.9rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        /* INFOGITTER FÜR DAS RANK SYSTEM */
+        .rank-info-box {
+            width: 100%;
+            max-width: 800px;
+            background: rgba(124, 58, 237, 0.05);
+            border: 1px solid var(--card-border);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 40px;
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 20px;
+        }
+
+        .info-item h4 {
+            margin: 0 0 8px 0;
+            color: var(--accent-color);
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .info-item p {
+            margin: 0;
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            line-height: 1.5;
+        }
+
+        /* RANK MAP STYLES */
+        .rank-map-section {
+            width: 100%;
+            max-width: 800px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .rank-map-title {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: white;
+            text-align: left;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .rank-map-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+            gap: 15px;
+            width: 100%;
+        }
+
+        .rank-map-card {
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 10px;
+            padding: 15px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+            opacity: 0.4;
+            transition: 0.3s;
+            position: relative;
+        }
+
+        .rank-map-card.unlocked {
+            opacity: 1;
+            border-color: #333;
+        }
+
+        .rank-map-card.current {
+            border-color: var(--accent-color);
+            background: rgba(124, 58, 237, 0.05);
+            box-shadow: 0 0 15px rgba(124, 58, 237, 0.2);
+            transform: scale(1.05);
+            z-index: 2;
+        }
+
+        .map-card-icon {
+            font-size: 1.8rem;
+            margin-bottom: 8px;
+        }
+
+        .map-card-name {
+            font-size: 0.8rem;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 4px;
+        }
+
+        .map-card-rp {
+            font-size: 0.7rem;
+            color: var(--text-muted);
+            font-family: var(--font-mono);
+        }
+
+        .current-tag {
+            position: absolute;
+            top: -10px;
+            background: var(--accent-color);
+            color: white;
+            font-size: 0.6rem;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-weight: bold;
+        }
 
         /* PROFILE */
         .profile-container {
@@ -641,19 +805,6 @@
             margin-top: 20px;
         }
 
-        #coming-soon-banner {
-            background: var(--accent-color);
-            color: white;
-            padding: 10px;
-            text-align: center;
-            font-weight: bold;
-            border-radius: 8px;
-            margin-bottom: 20px;
-            font-size: 0.9rem;
-            text-transform: uppercase;
-            letter-spacing: 2px;
-        }
-
     </style>
 </head>
 <body>
@@ -664,7 +815,11 @@
     <!-- TOP NAVIGATION -->
     <nav class="top-nav">
         <div class="nav-actions">
-            <button class="nav-btn" id="nav-btn-ranks">🏆 Ranks</button>
+            <!-- Dynamischer Rank Button -->
+            <button class="nav-btn" id="nav-btn-ranks">
+                <span id="nav-rank-icon">🌱</span>
+                <span id="nav-rp-display">0 RP</span>
+            </button>
             <button class="nav-btn" id="nav-btn-stats">📈 Stats</button>
             <button class="nav-btn" id="nav-btn-profile">👤 Profile</button>
         </div>
@@ -679,7 +834,7 @@
             After a countdown, some dots will flash.<br>
             Your job is simply to just count them.<br>
             Simply put: lock in.</p>
-            <div class="score-pill">YOUR ELO <span id="home-elo-score">--</span></div>
+            <div class="score-pill">YOUR RP <span id="home-elo-score">--</span></div>
             <div class="score-pill">STREAK <span id="home-streak-score">0</span> 🔥</div>
         </div>
 
@@ -693,7 +848,7 @@
             <div class="game-card" id="start-daily-card">
                 <div class="card-tag">DAILY</div>
                 <h3>Daily Challenge</h3>
-                <p>5 seeded rounds per day. Escalating difficulty. Globally shared.</p>
+                <p>5 seeded rounds per day. 5x RP reward. Globally shared.</p>
             </div>
 
             <div class="game-card disabled">
@@ -708,22 +863,47 @@
     <!-- RANKS VIEW -->
     <div id="ranks-view" class="view-container">
         <div class="page-header">
-            <div id="coming-soon-banner">Global Leaderboards - Coming Soon!</div>
-            <h2>Personal Ranking</h2>
-            <select id="leaderboard-category" class="rank-select">
-                <option value="daily">Daily Challenge</option>
-                <option value="elo">Total ELO</option>
-                <option value="avg">Global Average Score</option>
-                <option value="diff_1">Classic: Beginner</option>
-                <option value="diff_2">Classic: Easy</option>
-                <option value="diff_3">Classic: Medium</option>
-                <option value="diff_4">Classic: Hard</option>
-                <option value="diff_5">Classic: Expert</option>
-                <option value="diff_6">Classic: Inhuman</option>
-            </select>
+            <h2>Your Rank Progression</h2>
+            <p style="color: var(--text-muted);">Climb from Beginner to God</p>
         </div>
-        <div class="leaderboard" id="leaderboard-list">
-            <div style="color:var(--text-muted); text-align:center;">Loading Data...</div>
+        
+        <div class="rank-display-container">
+            <div class="rank-icon-large" id="rank-icon-display">?</div>
+            <div class="rank-name-main" id="rank-name-display">BEGINNER I</div>
+            <div class="rank-rp-text" id="rank-rp-display-view">0 RP</div>
+            
+            <div class="rank-progress-bar-container">
+                <div class="rank-progress-bar-fill" id="rank-progress-fill"></div>
+            </div>
+            <div class="rank-next-text" id="rank-next-display">NEXT RANK: 100 RP</div>
+        </div>
+
+        <!-- Rank Info Box -->
+        <div class="rank-info-box">
+            <div class="info-item">
+                <h4>🎯 Accuracy Rule</h4>
+                <p>Everything above <strong>75% accuracy</strong> earns you Rank Points (RP). If you score lower, you lose points (up to -50).</p>
+            </div>
+            <div class="info-item">
+                <h4>⚡ Rank Decay</h4>
+                <p>As you reach higher ranks, your RP gains are reduced. <strong>Top-tier climbing</strong> requires near-perfect consistency!</p>
+            </div>
+            <div class="info-item">
+                <h4>📅 Daily Bonus</h4>
+                <p>Play the Daily Challenge to receive a massive <strong>5x RP multiplier</strong> on your total score.</p>
+            </div>
+            <div class="info-item">
+                <h4>🔱 Scaled Tiers</h4>
+                <p>Higher ranks require <strong>more RP per Division</strong>. Beginner needs 100, while Legend needs 1000 per Div!</p>
+            </div>
+        </div>
+
+        <!-- Rank Map Section -->
+        <div class="rank-map-section">
+            <div class="rank-map-title">🗺️ Rank Roadmap</div>
+            <div class="rank-map-grid" id="rank-map-grid">
+                <!-- Dynamisch generiert -->
+            </div>
         </div>
     </div>
 
@@ -746,7 +926,7 @@
                 </div>
                 <div class="stat-card">
                     <div class="stat-card-val" id="stat-elo" style="color: #a855f7;">1000</div>
-                    <div class="stat-card-label">YOUR ELO</div>
+                    <div class="stat-card-label">YOUR RP</div>
                 </div>
                 <div class="stat-card">
                     <div class="stat-card-val" id="stat-rounds" style="color: white;">0</div>
@@ -875,30 +1055,14 @@
 
                 onAuthStateChanged(auth, (user) => {
                     currentUser = user;
+                    updateHomeScore();
                     if (user && document.getElementById('ranks-view').style.display === 'flex') {
-                        renderLeaderboard();
+                        renderRankDisplay();
                     }
                 });
             }
         };
         initFirebase();
-
-        const submitDailyScore = async (acc) => {
-            if (!currentUser || !db) return;
-            try {
-                const seedStr = new Date().toISOString().split('T')[0];
-                const docRef = doc(db, 'artifacts', appId, 'public', 'data', `daily_${seedStr}`, currentUser.uid);
-                
-                await setDoc(docRef, {
-                    name: UserProfile.name,
-                    photo: UserProfile.photo,
-                    acc: acc,
-                    timestamp: Date.now()
-                }, { merge: true });
-            } catch (e) {
-                console.error("Leaderboard Error", e);
-            }
-        };
 
         const saveGlobalProfile = async () => {
             if (!currentUser || !db) return;
@@ -919,20 +1083,77 @@
                 await setDoc(docRef, {
                     name: UserProfile.name,
                     photo: UserProfile.photo,
-                    elo: UserProfile.elo,
+                    rp: UserProfile.rp,
                     avg: avg,
-                    diff_1: diffBests[1],
-                    diff_2: diffBests[2],
-                    diff_3: diffBests[3],
-                    diff_4: diffBests[4],
-                    diff_5: diffBests[5],
-                    diff_6: diffBests[6],
                     timestamp: Date.now()
                 }, { merge: true });
             } catch (e) {
                 console.error("Global Profile Save Error", e);
             }
         };
+
+        // --- NEUE SKALIERTE RANK DATA ---
+        // minRp wird jetzt basierend auf den Kosten der vorherigen Ränge berechnet
+        const RANKS = [
+            { name: "Beginner", color: "#94a3b8", icon: "🌱", pointsPerDiv: 100, minRp: 0 },         // Tier Total: 300
+            { name: "Bronze", color: "#cd7f32", icon: "🥉", pointsPerDiv: 120, minRp: 300 },       // Tier Total: 360
+            { name: "Silver", color: "#c0c0c0", icon: "🥈", pointsPerDiv: 150, minRp: 660 },       // Tier Total: 450
+            { name: "Gold", color: "#ffd700", icon: "🥇", pointsPerDiv: 200, minRp: 1110 },      // Tier Total: 600
+            { name: "Platinum", color: "#e5e4e2", icon: "💎", pointsPerDiv: 250, minRp: 1710 },    // Tier Total: 750
+            { name: "Diamond", color: "#b9f2ff", icon: "💍", pointsPerDiv: 350, minRp: 2460 },    // Tier Total: 1050
+            { name: "Expert", color: "#4ade80", icon: "⚡", pointsPerDiv: 450, minRp: 3510 },    // Tier Total: 1350
+            { name: "Master", color: "#f472b6", icon: "🔥", pointsPerDiv: 600, minRp: 4860 },    // Tier Total: 1800
+            { name: "Champion", color: "#fb7185", icon: "🏆", pointsPerDiv: 800, minRp: 6660 },    // Tier Total: 2400
+            { name: "Legend", color: "#facc15", icon: "👑", pointsPerDiv: 1000, minRp: 9060 },   // Tier Total: 3000
+            { name: "God", color: "#ffffff", icon: "🌌", pointsPerDiv: 1000000, minRp: 12060 }    // Endloser Rang
+        ];
+
+        function getRankInfo(rp) {
+            // Finde den aktuellen Tier-Index
+            let tierIndex = 0;
+            for (let i = 0; i < RANKS.length; i++) {
+                if (rp >= RANKS[i].minRp) {
+                    tierIndex = i;
+                } else {
+                    break;
+                }
+            }
+
+            const tier = RANKS[tierIndex];
+            
+            // Wenn Gott erreicht ist
+            if (tier.name === "God") {
+                return { 
+                    tier: "God", 
+                    division: "∞", 
+                    color: tier.color, 
+                    icon: tier.icon, 
+                    nextRp: Infinity, 
+                    currentTierRp: tier.minRp,
+                    pointsPerDiv: tier.pointsPerDiv
+                };
+            }
+
+            // Berechne Division innerhalb des Tiers
+            const relativeRp = rp - tier.minRp;
+            const divisionIndex = Math.floor(relativeRp / tier.pointsPerDiv);
+            const divisions = ["I", "II", "III"];
+            
+            // Sicherheitshalber falls RP den Tier-Bereich kurzzeitig überschreitet bevor der Loop oben greift
+            const finalDivIndex = Math.min(divisionIndex, 2);
+            
+            const nextRp = tier.minRp + ((finalDivIndex + 1) * tier.pointsPerDiv);
+
+            return {
+                tier: tier.name,
+                division: divisions[finalDivIndex],
+                color: tier.color,
+                icon: tier.icon,
+                nextRp: nextRp,
+                currentTierRp: tier.minRp + (finalDivIndex * tier.pointsPerDiv),
+                pointsPerDiv: tier.pointsPerDiv
+            };
+        }
 
         // --- NAVIGATION & VIEW LOGIK ---
         const views = ['main-menu', 'difficulty-view', 'game-view', 'ranks-view', 'stats-view', 'profile-view'];
@@ -945,7 +1166,7 @@
         };
 
         document.getElementById('global-logo').addEventListener('click', () => showView('main-menu'));
-        document.getElementById('nav-btn-ranks').addEventListener('click', () => { renderLeaderboard(); showView('ranks-view'); });
+        document.getElementById('nav-btn-ranks').addEventListener('click', () => { renderRankDisplay(); showView('ranks-view'); });
         document.getElementById('nav-btn-stats').addEventListener('click', () => { renderStatsSummary(null, 0); showView('stats-view'); });
         document.getElementById('nav-btn-profile').addEventListener('click', () => showView('profile-view'));
         
@@ -963,10 +1184,6 @@
             document.dispatchEvent(new Event('startClassicGame'));
         });
         document.getElementById('stats-btn-home').addEventListener('click', () => showView('main-menu'));
-
-        document.getElementById('leaderboard-category').addEventListener('change', () => {
-            renderLeaderboard();
-        });
 
         // --- DAILY CHALLENGE COUNTDOWN LOGIC ---
         let dailyTimerInterval = null;
@@ -998,20 +1215,20 @@
                 card.classList.remove('disabled');
                 card.style.pointerEvents = 'auto';
                 h3.textContent = "Daily Challenge";
-                p.textContent = `5 seeded rounds per day. Globally shared. Current Streak: ${UserProfile.streak} 🔥`;
+                p.textContent = `5 seeded rounds per day. 5x RP reward. Streak: ${UserProfile.streak} 🔥`;
             }
         }
 
 
         /**
          * ---------------------------------------------------------
-         * PROFILE & STATS DATA MANAGEMENT WITH ELO & STREAK
+         * PROFILE & STATS DATA MANAGEMENT WITH RP & STREAK
          * ---------------------------------------------------------
          */
         const UserProfile = {
             name: "Player1",
             photo: "", 
-            elo: 1000,
+            rp: 0,
             streak: 0,
             history: [], 
             lastDaily: null, 
@@ -1020,7 +1237,7 @@
                 localStorage.setItem('dotcore_profile', JSON.stringify({
                     name: this.name, 
                     photo: this.photo, 
-                    elo: this.elo, 
+                    rp: this.rp, 
                     streak: this.streak,
                     lastDaily: this.lastDaily
                 }));
@@ -1034,7 +1251,7 @@
                 if (p) { 
                     this.name = p.name || "Player1"; 
                     this.photo = p.photo || ""; 
-                    this.elo = p.elo || 1000; 
+                    this.rp = p.rp || 0; 
                     this.streak = p.streak || 0;
                     this.lastDaily = p.lastDaily || null; 
                 }
@@ -1052,8 +1269,15 @@
         function updateHomeScore() {
             const eloDisplay = document.getElementById('home-elo-score');
             const streakDisplay = document.getElementById('home-streak-score');
-            if(eloDisplay) eloDisplay.textContent = UserProfile.elo;
+            if(eloDisplay) eloDisplay.textContent = UserProfile.rp;
             if(streakDisplay) streakDisplay.textContent = UserProfile.streak;
+
+            // Update Nav Button
+            const navRankIcon = document.getElementById('nav-rank-icon');
+            const navRpDisplay = document.getElementById('nav-rp-display');
+            const rank = getRankInfo(UserProfile.rp);
+            if (navRankIcon) navRankIcon.textContent = rank.icon;
+            if (navRpDisplay) navRpDisplay.textContent = `${UserProfile.rp} RP`;
         }
 
         // Profile View Logic
@@ -1090,56 +1314,59 @@
             profilePreview.innerHTML = "";
         }
 
-        // Ranks View Logic (Only Local Stats for now)
-        async function renderLeaderboard() {
-            const list = document.getElementById('leaderboard-list');
-            const category = document.getElementById('leaderboard-category').value;
-            list.innerHTML = '';
+        // Ranks View Logic
+        function renderRankDisplay() {
+            const rank = getRankInfo(UserProfile.rp);
             
-            const seedStr = new Date().toISOString().split('T')[0];
+            const iconDisplay = document.getElementById('rank-icon-display');
+            const nameDisplay = document.getElementById('rank-name-display');
+            const rpDisplay = document.getElementById('rank-rp-display-view');
+            const progressFill = document.getElementById('rank-progress-fill');
+            const nextDisplay = document.getElementById('rank-next-display');
 
-            let localPlayer = {
-                id: currentUser ? currentUser.uid : 'local_user',
-                name: UserProfile.name,
-                photo: UserProfile.photo,
-                elo: UserProfile.elo,
-                avg: UserProfile.history.length > 0 ? (UserProfile.history.reduce((a,b)=>a+b.accuracy,0)/UserProfile.history.length) : 0,
-                diff_1: 0, diff_2: 0, diff_3: 0, diff_4: 0, diff_5: 0, diff_6: 0,
-                acc: (UserProfile.lastDaily && UserProfile.lastDaily.date === seedStr) ? UserProfile.lastDaily.acc : 0
-            };
-            
-            UserProfile.history.forEach(r => {
-                if (r.diffId && r.accuracy > localPlayer[`diff_${r.diffId}`]) {
-                    localPlayer[`diff_${r.diffId}`] = r.accuracy;
-                }
-            });
+            iconDisplay.textContent = rank.icon;
+            iconDisplay.style.borderColor = rank.color;
+            nameDisplay.textContent = `${rank.tier} ${rank.division}`;
+            nameDisplay.style.color = rank.color;
+            rpDisplay.textContent = `${UserProfile.rp} RP`;
 
-            const row = document.createElement('div');
-            row.className = 'rank-item';
-            row.style.backgroundColor = 'rgba(124, 58, 237, 0.1)';
-            
-            const imgStyle = localPlayer.photo ? `background-image: url(${localPlayer.photo});` : '';
-            
-            let sortKey = category === 'daily' ? 'acc' : category;
-            let displayScore = localPlayer[sortKey];
-            if (sortKey !== 'elo') {
-                displayScore = (displayScore || 0).toFixed(1) + '%';
+            if (rank.nextRp === Infinity) {
+                progressFill.style.width = "100%";
+                nextDisplay.textContent = "MAX RANK ACHIEVED";
+            } else {
+                const currentProgress = UserProfile.rp - rank.currentTierRp;
+                const totalNeeded = rank.nextRp - rank.currentTierRp;
+                const percentage = (currentProgress / totalNeeded) * 100;
+                progressFill.style.width = `${percentage}%`;
+                nextDisplay.textContent = `NEXT RANK IN: ${rank.nextRp - UserProfile.rp} RP`;
             }
-            
-            row.innerHTML = `
-                <div class="rank-pos">#1</div>
-                <div class="rank-name">
-                    <div class="rank-img" style="${imgStyle}"></div>
-                    <span style="color: var(--accent-color); font-weight: bold;">${localPlayer.name || 'Anonymous'} (You)</span>
-                </div>
-                <div class="rank-score">${displayScore}</div>
-            `;
-            list.appendChild(row);
 
-            const placeholder = document.createElement('div');
-            placeholder.style.cssText = "text-align: center; color: var(--text-muted); padding: 30px; font-style: italic; font-size: 0.9rem;";
-            placeholder.textContent = "Global stats are currently hidden. Play to improve your personal rank!";
-            list.appendChild(placeholder);
+            renderRankMap();
+        }
+
+        function renderRankMap() {
+            const grid = document.getElementById('rank-map-grid');
+            if (!grid) return;
+            grid.innerHTML = '';
+
+            const currentRank = getRankInfo(UserProfile.rp);
+
+            RANKS.forEach(tier => {
+                const isUnlocked = UserProfile.rp >= tier.minRp;
+                const isCurrentTier = currentRank.tier === tier.name;
+
+                const card = document.createElement('div');
+                card.className = `rank-map-card ${isUnlocked ? 'unlocked' : ''} ${isCurrentTier ? 'current' : ''}`;
+                
+                card.innerHTML = `
+                    ${isCurrentTier ? '<div class="current-tag">ACTIVE</div>' : ''}
+                    <div class="map-card-icon">${tier.icon}</div>
+                    <div class="map-card-name" style="color: ${tier.color}">${tier.name}</div>
+                    <div class="map-card-rp">${tier.minRp} RP</div>
+                `;
+
+                grid.appendChild(card);
+            });
         }
 
         // Stats View Logic
@@ -1166,7 +1393,7 @@
             if(historyToUse.length === 0) {
                 document.getElementById('stat-avg').textContent = "0.0%";
                 document.getElementById('stat-best').textContent = "0.0%";
-                document.getElementById('stat-elo').textContent = UserProfile.elo;
+                document.getElementById('stat-elo').textContent = UserProfile.rp;
                 document.getElementById('stat-rounds').textContent = "0";
                 bdContainer.innerHTML = '<div style="text-align:center; color: var(--text-muted); font-size: 0.9rem;">Play a game to see round breakdowns here.</div>';
                 return;
@@ -1186,27 +1413,25 @@
             document.getElementById('stat-rounds').textContent = historyToUse.length;
 
             let eloChangeText = '';
-            if (sessionData && !sessionData.isDaily) {
+            if (sessionData) {
                 if (sessionData.eloChange === undefined) {
                     const diffMultiplier = [0.5, 0.8, 1, 1.2, 1.5, 2][sessionData.difficultyId - 1] || 1;
-                    let baseScoreDiff = avg - 75;
-                    let eloFactor = 1.0;
-                    let currentEloForCalc = UserProfile.elo;
+                    const dailyFactor = sessionData.isDaily ? 5 : 1;
                     
-                    if (baseScoreDiff > 0) {
-                        if (currentEloForCalc > 500) {
-                            eloFactor = 500 / currentEloForCalc;
-                            if (eloFactor < 0.1) eloFactor = 0.1;
-                        }
-                    } else {
-                        if (currentEloForCalc > 1000) {
-                            eloFactor = 1.0 + ((currentEloForCalc - 1000) / 500); 
-                            if (eloFactor > 3.0) eloFactor = 3.0; 
-                        }
+                    // RP DECAY / GAIN REDUCTION LOGIC
+                    // Je höher die RP, desto weniger Punkte bekommt man für die gleiche Leistung.
+                    // Wir skalieren den Gewinn mit einem Faktor, der bei höheren RP sinkt.
+                    const gainDecayFactor = Math.max(0.2, 1 - (UserProfile.rp / 20000));
+                    
+                    let baseScoreDiff = avg - 75;
+                    let eloChange = Math.round(baseScoreDiff * diffMultiplier * dailyFactor * gainDecayFactor);
+                    
+                    // Verluste werden bei hohen Rängen NICHT reduziert (Bestrafung für Fehler bleibt hart)
+                    if (eloChange < 0) {
+                        eloChange = Math.max(-100, Math.round(baseScoreDiff * diffMultiplier * dailyFactor));
                     }
                     
-                    const eloChange = Math.round(baseScoreDiff * diffMultiplier * 2 * eloFactor);
-                    UserProfile.elo = Math.max(0, UserProfile.elo + eloChange); 
+                    UserProfile.rp = Math.max(0, UserProfile.rp + eloChange); 
                     UserProfile.save(); 
                     sessionData.eloChange = eloChange;
                 }
@@ -1214,7 +1439,7 @@
                 eloChangeText = ` (${sign}${sessionData.eloChange})`;
             }
 
-            document.getElementById('stat-elo').textContent = `${UserProfile.elo}${eloChangeText}`;
+            document.getElementById('stat-elo').textContent = `${UserProfile.rp}${eloChangeText}`;
 
             const reversedHistory = [...historyToUse].reverse();
             const totalPages = Math.ceil(reversedHistory.length / 10);
@@ -1366,32 +1591,24 @@
                 this.currentRound++;
                 if(this.currentRound > this.maxRounds) {
                     if(this.isDaily) {
-                        const avgAcc = this.sessionHistory.reduce((a,b)=>a+b.accuracy, 0) / this.sessionHistory.length;
                         const seedStr = new Date().toISOString().split('T')[0];
-                        
                         const lastDateStr = UserProfile.lastDaily ? UserProfile.lastDaily.date : null;
                         const today = new Date(seedStr);
                         
                         if (lastDateStr) {
                             const lastDate = new Date(lastDateStr);
                             const diffDays = Math.round((today - lastDate) / (1000 * 60 * 60 * 24));
-                            if (diffDays === 1) {
-                                UserProfile.streak++;
-                            } else if (diffDays > 1) {
-                                UserProfile.streak = 1;
-                            }
-                        } else {
-                            UserProfile.streak = 1;
-                        }
+                            if (diffDays === 1) UserProfile.streak++;
+                            else if (diffDays > 1) UserProfile.streak = 1;
+                        } else UserProfile.streak = 1;
 
-                        UserProfile.lastDaily = { date: seedStr, acc: avgAcc };
+                        UserProfile.lastDaily = { date: seedStr, acc: 0 }; // Placeholder
                         UserProfile.save();
-                        submitDailyScore(avgAcc);
                     }
                     renderStatsSummary({ history: this.sessionHistory, difficultyId: this.currentDifficulty.id, isDaily: this.isDaily }, 0);
                     showView('stats-view');
                 } else {
-                    if (this.isDaily) this.setDifficulty(this.currentRound);
+                    if (this.isDaily) this.setDifficulty(Math.min(this.currentRound, 6));
                     this.startRound();
                 }
             }
@@ -1533,6 +1750,7 @@
             const bus = new GameEventBus();
             const state = new GameState(bus);
             const ui = new UIManager(bus, state);
+            UserProfile.load(); // Initialer Load
         };
         document.addEventListener('DOMContentLoaded', initGame);
     </script>
