@@ -868,6 +868,17 @@
             border: 1px dashed rgba(74, 222, 128, 0.2);
         }
 
+        /* Rank Decay Badge Style */
+        .decay-badge {
+            color: #ef4444;
+            font-size: 0.75rem;
+            margin-top: 5px;
+            display: inline-block;
+            background: rgba(239, 68, 68, 0.1);
+            padding: 2px 8px;
+            border-radius: 4px;
+        }
+
         .breakdown-list {
             background: var(--card-bg);
             border: 1px solid var(--card-border);
@@ -1055,6 +1066,8 @@
                         <div class="stat-card-val" id="stat-elo" style="color: #a855f7;">1000</div>
                         <!-- Hier wird der Gold Bonus angezeigt -->
                         <div id="stat-bonus-val" style="color: #facc15; font-size: 0.9rem; font-weight: bold; margin-top: -5px; display: none;">Bonus: +0</div>
+                        <!-- Hier wird der Rank Decay angezeigt -->
+                        <div id="stat-decay-val" class="decay-badge" style="display: none;">Rank Decay: -0</div>
                     </div>
                     <div class="stat-card-label">YOUR RP</div>
                 </div>
@@ -1225,19 +1238,19 @@
             }
         };
 
-        // --- NEUE SKALIERTE RANK DATA ---
+        // --- NEUE SKALIERTE RANK DATA MIT DECAY ---
         const RANKS = [
-            { name: "Beginner", color: "#94a3b8", icon: "🌱", pointsPerDiv: 100, minRp: 0 },         
-            { name: "Bronze", color: "#cd7f32", icon: "🥉", pointsPerDiv: 120, minRp: 300 },       
-            { name: "Silver", color: "#c0c0c0", icon: "🥈", pointsPerDiv: 150, minRp: 660 },       
-            { name: "Gold", color: "#ffd700", icon: "🥇", pointsPerDiv: 200, minRp: 1110 },      
-            { name: "Platinum", color: "#e5e4e2", icon: "💎", pointsPerDiv: 250, minRp: 1710 },    
-            { name: "Diamond", color: "#b9f2ff", icon: "💍", pointsPerDiv: 350, minRp: 2460 },    
-            { name: "Expert", color: "#4ade80", icon: "⚡", pointsPerDiv: 450, minRp: 3510 },    
-            { name: "Master", color: "#f472b6", icon: "🔥", pointsPerDiv: 600, minRp: 4860 },    
-            { name: "Champion", color: "#fb7185", icon: "🏆", pointsPerDiv: 800, minRp: 6660 },    
-            { name: "Legend", color: "#facc15", icon: "👑", pointsPerDiv: 1000, minRp: 9060 },   
-            { name: "God", color: "#ffffff", icon: "🌌", pointsPerDiv: 1000000, minRp: 12060 }    
+            { name: "Beginner", color: "#94a3b8", icon: "🌱", pointsPerDiv: 100, minRp: 0, decay: 0 },         
+            { name: "Bronze", color: "#cd7f32", icon: "🥉", pointsPerDiv: 120, minRp: 300, decay: 1 },       
+            { name: "Silver", color: "#c0c0c0", icon: "🥈", pointsPerDiv: 150, minRp: 660, decay: 3 },       
+            { name: "Gold", color: "#ffd700", icon: "🥇", pointsPerDiv: 200, minRp: 1110, decay: 6 },      
+            { name: "Platinum", color: "#e5e4e2", icon: "💎", pointsPerDiv: 250, minRp: 1710, decay: 10 },    
+            { name: "Diamond", color: "#b9f2ff", icon: "💍", pointsPerDiv: 350, minRp: 2460, decay: 15 },    
+            { name: "Expert", color: "#4ade80", icon: "⚡", pointsPerDiv: 450, minRp: 3510, decay: 22 },    
+            { name: "Master", color: "#f472b6", icon: "🔥", pointsPerDiv: 600, minRp: 4860, decay: 30 },    
+            { name: "Champion", color: "#fb7185", icon: "🏆", pointsPerDiv: 800, minRp: 6660, decay: 42 },    
+            { name: "Legend", color: "#facc15", icon: "👑", pointsPerDiv: 1000, minRp: 9060, decay: 58 },   
+            { name: "God", color: "#ffffff", icon: "🌌", pointsPerDiv: 1000000, minRp: 12060, decay: 80 }    
         ];
 
         function getRankInfo(rp) {
@@ -1261,7 +1274,8 @@
                     nextRp: Infinity, 
                     currentTierRp: tier.minRp,
                     pointsPerDiv: tier.pointsPerDiv,
-                    rankString: "GOD"
+                    rankString: "GOD",
+                    decay: tier.decay
                 };
             }
 
@@ -1279,7 +1293,8 @@
                 nextRp: nextRp,
                 currentTierRp: tier.minRp + (finalDivIndex * tier.pointsPerDiv),
                 pointsPerDiv: tier.pointsPerDiv,
-                rankString: `${tier.name} ${divisions[finalDivIndex]}`
+                rankString: `${tier.name} ${divisions[finalDivIndex]}`,
+                decay: tier.decay
             };
         }
 
@@ -1503,6 +1518,7 @@
             const bdContainer = document.getElementById('stats-breakdown');
             const sessionBonusInfo = document.getElementById('session-bonus-info');
             const statBonusVal = document.getElementById('stat-bonus-val');
+            const statDecayVal = document.getElementById('stat-decay-val');
             
             bdContainer.innerHTML = '';
 
@@ -1522,6 +1538,7 @@
                 document.getElementById('stat-rounds').textContent = "0";
                 sessionBonusInfo.style.display = 'none';
                 if(statBonusVal) statBonusVal.style.display = 'none';
+                if(statDecayVal) statDecayVal.style.display = 'none';
                 bdContainer.innerHTML = '<div style="text-align:center; color: var(--text-muted); font-size: 0.9rem;">Play a game to see round breakdowns here.</div>';
                 return;
             }
@@ -1568,12 +1585,19 @@
                     // Berechnung des totalen Gewinns inklusive Bonus
                     const totalEloChange = Math.round(baseEloChange * matchBonus);
                     
+                    // --- RANK DECAY BERECHNUNG ---
+                    const currentRank = getRankInfo(UserProfile.rp);
+                    const rankDecay = currentRank.decay || 0;
+                    
                     // Der reine Bonusbetrag (die "Gold" Extra XP)
                     const extraBonusAmount = totalEloChange - baseEloChange;
 
-                    let finalChange = totalEloChange;
-                    if (finalChange < 0) {
-                        finalChange = Math.max(-100, Math.round((avg - 75) * diffMultiplier * dailyFactor));
+                    // Finale Berechnung: RP Change - Rank Decay
+                    let finalChange = totalEloChange - rankDecay;
+                    
+                    // Falls der Spieler verliert, wird der Decay trotzdem abgezogen (man verliert mehr)
+                    if (finalChange < -100) {
+                        finalChange = Math.max(-100, Math.round((avg - 75) * diffMultiplier * dailyFactor) - rankDecay);
                     }
                     
                     const oldRank = getRankInfo(UserProfile.rp);
@@ -1592,6 +1616,7 @@
                     UserProfile.save(); 
                     sessionData.eloChange = finalChange;
                     sessionData.bonusAmount = extraBonusAmount;
+                    sessionData.decayAmount = rankDecay;
                 }
 
                 const sign = sessionData.eloChange >= 0 ? '+' : '';
@@ -1604,9 +1629,18 @@
                 } else if(statBonusVal) {
                     statBonusVal.style.display = 'none';
                 }
+
+                // Update der Rank Decay Anzeige
+                if (statDecayVal && sessionData.decayAmount > 0) {
+                    statDecayVal.textContent = `Rank Decay: -${sessionData.decayAmount}`;
+                    statDecayVal.style.display = 'inline-block';
+                } else if(statDecayVal) {
+                    statDecayVal.style.display = 'none';
+                }
             } else {
                 sessionBonusInfo.style.display = 'none';
                 if(statBonusVal) statBonusVal.style.display = 'none';
+                if(statDecayVal) statDecayVal.style.display = 'none';
             }
 
             document.getElementById('stat-elo').textContent = `${UserProfile.rp}${eloChangeText}`;
