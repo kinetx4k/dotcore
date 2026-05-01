@@ -120,6 +120,17 @@
             font-weight: bold;
         }
 
+        /* Styling für den Bonus-Tag in der Nav */
+        .nav-bonus-tag {
+            background: rgba(74, 222, 128, 0.15);
+            color: #4ade80;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            border: 1px solid rgba(74, 222, 128, 0.3);
+            margin-left: 5px;
+        }
+
         .hero-section {
             text-align: center;
             margin: 40px 0 60px 0;
@@ -684,6 +695,94 @@
             font-weight: bold;
         }
 
+        /* --- RANK UP OVERLAY (FORTNITE STYLE) --- */
+        #rank-up-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: radial-gradient(circle, rgba(124, 58, 237, 0.4) 0%, rgba(0,0,0,0.9) 80%);
+            z-index: 9999;
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            opacity: 0;
+            transition: opacity 0.5s ease;
+        }
+
+        #rank-up-overlay.active {
+            display: flex;
+            opacity: 1;
+        }
+
+        .rank-up-content {
+            text-align: center;
+            transform: scale(0.5);
+            animation: fortnitePop 0.8s cubic-bezier(0.17, 0.67, 0.2, 1.2) forwards;
+        }
+
+        @keyframes fortnitePop {
+            0% { transform: scale(0.5); opacity: 0; }
+            70% { transform: scale(1.1); opacity: 1; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+
+        .rank-up-title {
+            font-size: 4rem;
+            font-weight: 900;
+            color: #fff;
+            text-shadow: 0 0 20px var(--accent-color), 0 0 40px var(--accent-color);
+            letter-spacing: 10px;
+            text-transform: uppercase;
+            margin-bottom: 20px;
+            animation: textGlow 2s infinite alternate;
+        }
+
+        @keyframes textGlow {
+            from { text-shadow: 0 0 10px #fff, 0 0 20px var(--accent-color); }
+            to { text-shadow: 0 0 20px #fff, 0 0 40px var(--accent-color), 0 0 60px var(--accent-color); }
+        }
+
+        .rank-up-icon {
+            font-size: 8rem;
+            margin: 30px 0;
+            filter: drop-shadow(0 0 30px #fff);
+            animation: iconFloat 3s ease-in-out infinite;
+        }
+
+        @keyframes iconFloat {
+            0%, 100% { transform: translateY(0) rotate(0deg); }
+            50% { transform: translateY(-20px) rotate(5deg); }
+        }
+
+        .rank-up-name {
+            font-size: 3rem;
+            font-weight: bold;
+            color: #fff;
+            margin-bottom: 40px;
+        }
+
+        .rank-up-btn {
+            padding: 15px 40px;
+            background: #fff;
+            color: #000;
+            border: none;
+            border-radius: 50px;
+            font-size: 1.5rem;
+            font-weight: 900;
+            cursor: pointer;
+            text-transform: uppercase;
+            box-shadow: 0 10px 0 #ccc;
+            transition: 0.1s;
+        }
+
+        .rank-up-btn:active {
+            transform: translateY(5px);
+            box-shadow: 0 5px 0 #ccc;
+        }
+
         /* PROFILE */
         .profile-container {
             display: flex;
@@ -755,6 +854,20 @@
         .stat-card-val { font-size: 2.5rem; font-weight: bold; color: var(--accent-color); margin-bottom: 5px; }
         .stat-card-label { font-size: 0.7rem; color: var(--text-muted); letter-spacing: 2px; text-transform: uppercase;}
         
+        /* Neuer Style für den Bonus-Text unter der Zusammenfassung */
+        .bonus-info-text {
+            text-align: center;
+            color: #4ade80;
+            font-weight: bold;
+            font-size: 0.95rem;
+            letter-spacing: 1px;
+            margin: 10px 0;
+            padding: 10px;
+            background: rgba(74, 222, 128, 0.05);
+            border-radius: 8px;
+            border: 1px dashed rgba(74, 222, 128, 0.2);
+        }
+
         .breakdown-list {
             background: var(--card-bg);
             border: 1px solid var(--card-border);
@@ -819,11 +932,23 @@
             <button class="nav-btn" id="nav-btn-ranks">
                 <span id="nav-rank-icon">🌱</span>
                 <span id="nav-rp-display">0 RP</span>
+                <!-- Hier wird der Bonus-Prozentsatz angezeigt -->
+                <span id="nav-bonus-display" class="nav-bonus-tag">+0%</span>
             </button>
             <button class="nav-btn" id="nav-btn-stats">📈 Stats</button>
             <button class="nav-btn" id="nav-btn-profile">👤 Profile</button>
         </div>
     </nav>
+
+    <!-- RANK UP OVERLAY -->
+    <div id="rank-up-overlay">
+        <div class="rank-up-content">
+            <div class="rank-up-title">Rank Up!</div>
+            <div class="rank-up-icon" id="overlay-rank-icon">🌱</div>
+            <div class="rank-up-name" id="overlay-rank-name">BEGINNER II</div>
+            <button class="rank-up-btn" id="rank-up-close">Collect</button>
+        </div>
+    </div>
 
     <!-- HAUPTMENÜ -->
     <div id="main-menu" class="view-container">
@@ -842,7 +967,7 @@
             <div class="game-card" id="start-classic-card">
                 <div class="card-tag">CORE</div>
                 <h3>Classic</h3>
-                <p>10 rounds, choose your difficulty. Your bread and butter.</p>
+                <p>5 rounds, choose your difficulty. Your bread and butter.</p>
             </div>
 
             <div class="game-card" id="start-daily-card">
@@ -882,19 +1007,19 @@
         <div class="rank-info-box">
             <div class="info-item">
                 <h4>🎯 Accuracy Rule</h4>
-                <p>Everything above <strong>75% accuracy</strong> earns you Rank Points (RP). If you score lower, you lose points (up to -50).</p>
+                <p>Everything above <strong>75% accuracy</strong> earns you Rank Points (RP). 100% gives you a massive bonus compared to 75%!</p>
             </div>
             <div class="info-item">
-                <h4>⚡ Rank Decay</h4>
-                <p>As you reach higher ranks, your RP gains are reduced. <strong>Top-tier climbing</strong> requires near-perfect consistency!</p>
+                <h4>⚡ Experience Bonus</h4>
+                <p>Loyalty pays off! Every 15 matches played give you a permanent <strong>1% RP bonus</strong> to all gains!</p>
             </div>
             <div class="info-item">
                 <h4>📅 Daily Bonus</h4>
                 <p>Play the Daily Challenge to receive a massive <strong>5x RP multiplier</strong> on your total score.</p>
             </div>
             <div class="info-item">
-                <h4>🔱 Scaled Tiers</h4>
-                <p>Higher ranks require <strong>more RP per Division</strong>. Beginner needs 100, while Legend needs 1000 per Div!</p>
+                <h4>🔱 Difficulty Boost</h4>
+                <p>Higher difficulties now offer significantly <strong>better RP scaling</strong>. Inhuman mode rewards you with a 12x multiplier!</p>
             </div>
         </div>
 
@@ -925,7 +1050,12 @@
                     <div class="stat-card-label">BEST ROUND</div>
                 </div>
                 <div class="stat-card">
-                    <div class="stat-card-val" id="stat-elo" style="color: #a855f7;">1000</div>
+                    <!-- RP Anzeige Bereich -->
+                    <div style="display: flex; flex-direction: column; align-items: center;">
+                        <div class="stat-card-val" id="stat-elo" style="color: #a855f7;">1000</div>
+                        <!-- Hier wird der Gold Bonus angezeigt -->
+                        <div id="stat-bonus-val" style="color: #facc15; font-size: 0.9rem; font-weight: bold; margin-top: -5px; display: none;">Bonus: +0</div>
+                    </div>
                     <div class="stat-card-label">YOUR RP</div>
                 </div>
                 <div class="stat-card">
@@ -933,6 +1063,9 @@
                     <div class="stat-card-label">ROUNDS PLAYED</div>
                 </div>
             </div>
+
+            <!-- Platzhalter für den Bonus-Info-Text am Ende des Spiels -->
+            <div id="session-bonus-info" class="bonus-info-text" style="display:none;"></div>
 
             <div class="breakdown-list" id="stats-breakdown">
                 <!-- Dynamically populated rows -->
@@ -975,7 +1108,7 @@
     <div id="difficulty-view" class="view-container">
         <div class="diff-header">
             <h2>Choose Difficulty</h2>
-            <p>Classic Mode &middot; 10 Rounds</p>
+            <p>Classic Mode &middot; 5 Rounds</p>
         </div>
         
         <div class="diff-list" id="difficulty-list">
@@ -992,7 +1125,7 @@
     <div id="game-view" class="view-container" style="padding-top: 80px;">
         
         <div class="game-header-bar">
-            <span id="round-display">Round 1 of 10</span>
+            <span id="round-display">Round 1 of 5</span>
             <span id="diff-display">MEDIUM</span>
         </div>
 
@@ -1093,23 +1226,21 @@
         };
 
         // --- NEUE SKALIERTE RANK DATA ---
-        // minRp wird jetzt basierend auf den Kosten der vorherigen Ränge berechnet
         const RANKS = [
-            { name: "Beginner", color: "#94a3b8", icon: "🌱", pointsPerDiv: 100, minRp: 0 },         // Tier Total: 300
-            { name: "Bronze", color: "#cd7f32", icon: "🥉", pointsPerDiv: 120, minRp: 300 },       // Tier Total: 360
-            { name: "Silver", color: "#c0c0c0", icon: "🥈", pointsPerDiv: 150, minRp: 660 },       // Tier Total: 450
-            { name: "Gold", color: "#ffd700", icon: "🥇", pointsPerDiv: 200, minRp: 1110 },      // Tier Total: 600
-            { name: "Platinum", color: "#e5e4e2", icon: "💎", pointsPerDiv: 250, minRp: 1710 },    // Tier Total: 750
-            { name: "Diamond", color: "#b9f2ff", icon: "💍", pointsPerDiv: 350, minRp: 2460 },    // Tier Total: 1050
-            { name: "Expert", color: "#4ade80", icon: "⚡", pointsPerDiv: 450, minRp: 3510 },    // Tier Total: 1350
-            { name: "Master", color: "#f472b6", icon: "🔥", pointsPerDiv: 600, minRp: 4860 },    // Tier Total: 1800
-            { name: "Champion", color: "#fb7185", icon: "🏆", pointsPerDiv: 800, minRp: 6660 },    // Tier Total: 2400
-            { name: "Legend", color: "#facc15", icon: "👑", pointsPerDiv: 1000, minRp: 9060 },   // Tier Total: 3000
-            { name: "God", color: "#ffffff", icon: "🌌", pointsPerDiv: 1000000, minRp: 12060 }    // Endloser Rang
+            { name: "Beginner", color: "#94a3b8", icon: "🌱", pointsPerDiv: 100, minRp: 0 },         
+            { name: "Bronze", color: "#cd7f32", icon: "🥉", pointsPerDiv: 120, minRp: 300 },       
+            { name: "Silver", color: "#c0c0c0", icon: "🥈", pointsPerDiv: 150, minRp: 660 },       
+            { name: "Gold", color: "#ffd700", icon: "🥇", pointsPerDiv: 200, minRp: 1110 },      
+            { name: "Platinum", color: "#e5e4e2", icon: "💎", pointsPerDiv: 250, minRp: 1710 },    
+            { name: "Diamond", color: "#b9f2ff", icon: "💍", pointsPerDiv: 350, minRp: 2460 },    
+            { name: "Expert", color: "#4ade80", icon: "⚡", pointsPerDiv: 450, minRp: 3510 },    
+            { name: "Master", color: "#f472b6", icon: "🔥", pointsPerDiv: 600, minRp: 4860 },    
+            { name: "Champion", color: "#fb7185", icon: "🏆", pointsPerDiv: 800, minRp: 6660 },    
+            { name: "Legend", color: "#facc15", icon: "👑", pointsPerDiv: 1000, minRp: 9060 },   
+            { name: "God", color: "#ffffff", icon: "🌌", pointsPerDiv: 1000000, minRp: 12060 }    
         ];
 
         function getRankInfo(rp) {
-            // Finde den aktuellen Tier-Index
             let tierIndex = 0;
             for (let i = 0; i < RANKS.length; i++) {
                 if (rp >= RANKS[i].minRp) {
@@ -1121,7 +1252,6 @@
 
             const tier = RANKS[tierIndex];
             
-            // Wenn Gott erreicht ist
             if (tier.name === "God") {
                 return { 
                     tier: "God", 
@@ -1130,18 +1260,15 @@
                     icon: tier.icon, 
                     nextRp: Infinity, 
                     currentTierRp: tier.minRp,
-                    pointsPerDiv: tier.pointsPerDiv
+                    pointsPerDiv: tier.pointsPerDiv,
+                    rankString: "GOD"
                 };
             }
 
-            // Berechne Division innerhalb des Tiers
             const relativeRp = rp - tier.minRp;
             const divisionIndex = Math.floor(relativeRp / tier.pointsPerDiv);
             const divisions = ["I", "II", "III"];
-            
-            // Sicherheitshalber falls RP den Tier-Bereich kurzzeitig überschreitet bevor der Loop oben greift
             const finalDivIndex = Math.min(divisionIndex, 2);
-            
             const nextRp = tier.minRp + ((finalDivIndex + 1) * tier.pointsPerDiv);
 
             return {
@@ -1151,7 +1278,8 @@
                 icon: tier.icon,
                 nextRp: nextRp,
                 currentTierRp: tier.minRp + (finalDivIndex * tier.pointsPerDiv),
-                pointsPerDiv: tier.pointsPerDiv
+                pointsPerDiv: tier.pointsPerDiv,
+                rankString: `${tier.name} ${divisions[finalDivIndex]}`
             };
         }
 
@@ -1185,6 +1313,11 @@
         });
         document.getElementById('stats-btn-home').addEventListener('click', () => showView('main-menu'));
 
+        // Rank up overlay close
+        document.getElementById('rank-up-close').onclick = () => {
+            document.getElementById('rank-up-overlay').classList.remove('active');
+        };
+
         // --- DAILY CHALLENGE COUNTDOWN LOGIC ---
         let dailyTimerInterval = null;
         function updateDailyCard() {
@@ -1195,28 +1328,10 @@
 
             if (dailyTimerInterval) clearInterval(dailyTimerInterval);
 
-            if (UserProfile.lastDaily && UserProfile.lastDaily.date === seedStr) {
-                card.classList.add('disabled');
-                card.style.pointerEvents = 'none';
-                
-                dailyTimerInterval = setInterval(() => {
-                    const now = new Date();
-                    const tomorrow = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1));
-                    const diff = tomorrow - now;
-                    
-                    const h = Math.floor(diff / (1000 * 60 * 60));
-                    const m = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-                    const s = Math.floor((diff % (1000 * 60)) / 1000);
-                    
-                    h3.textContent = "Done for today!";
-                    p.textContent = `Next daily in: ${h.toString().padStart(2,'0')}:${m.toString().padStart(2,'0')}:${s.toString().padStart(2,'0')} | Streak: ${UserProfile.streak} 🔥`;
-                }, 1000);
-            } else {
-                card.classList.remove('disabled');
-                card.style.pointerEvents = 'auto';
-                h3.textContent = "Daily Challenge";
-                p.textContent = `5 seeded rounds per day. 5x RP reward. Streak: ${UserProfile.streak} 🔥`;
-            }
+            card.classList.remove('disabled');
+            card.style.pointerEvents = 'auto';
+            h3.textContent = "Daily Challenge";
+            p.textContent = `5 seeded rounds per day. 5x RP reward. Streak: ${UserProfile.streak} 🔥`;
         }
 
 
@@ -1272,12 +1387,19 @@
             if(eloDisplay) eloDisplay.textContent = UserProfile.rp;
             if(streakDisplay) streakDisplay.textContent = UserProfile.streak;
 
-            // Update Nav Button
             const navRankIcon = document.getElementById('nav-rank-icon');
             const navRpDisplay = document.getElementById('nav-rp-display');
+            const navBonusDisplay = document.getElementById('nav-bonus-display');
+            
             const rank = getRankInfo(UserProfile.rp);
+            
+            // --- BONUS BERECHNUNG FÜR DIE NAV ---
+            const totalMatchesPlayed = UserProfile.history.length;
+            const bonusPercent = Math.floor(totalMatchesPlayed / 15);
+            
             if (navRankIcon) navRankIcon.textContent = rank.icon;
             if (navRpDisplay) navRpDisplay.textContent = `${UserProfile.rp} RP`;
+            if (navBonusDisplay) navBonusDisplay.textContent = `+${bonusPercent}%`;
         }
 
         // Profile View Logic
@@ -1379,6 +1501,9 @@
             
             const historyToUse = sessionData ? sessionData.history : UserProfile.history;
             const bdContainer = document.getElementById('stats-breakdown');
+            const sessionBonusInfo = document.getElementById('session-bonus-info');
+            const statBonusVal = document.getElementById('stat-bonus-val');
+            
             bdContainer.innerHTML = '';
 
             document.getElementById('stats-title').textContent = sessionData ? "Session Complete" : "Performance Stats";
@@ -1395,6 +1520,8 @@
                 document.getElementById('stat-best').textContent = "0.0%";
                 document.getElementById('stat-elo').textContent = UserProfile.rp;
                 document.getElementById('stat-rounds').textContent = "0";
+                sessionBonusInfo.style.display = 'none';
+                if(statBonusVal) statBonusVal.style.display = 'none';
                 bdContainer.innerHTML = '<div style="text-align:center; color: var(--text-muted); font-size: 0.9rem;">Play a game to see round breakdowns here.</div>';
                 return;
             }
@@ -1414,29 +1541,72 @@
 
             let eloChangeText = '';
             if (sessionData) {
+                // --- BONUS BERECHNUNG FÜR DIE ENDANZEIGE ---
+                const totalMatchesPlayed = UserProfile.history.length;
+                const bonusPercent = Math.floor(totalMatchesPlayed / 15);
+                const nextMatchThreshold = 15 - (totalMatchesPlayed % 15);
+                
+                sessionBonusInfo.innerHTML = `⚡ <strong>ACTIVE BONUS:</strong> +${bonusPercent}% RP GAIN &middot; <span>Next boost in ${nextMatchThreshold} rounds</span>`;
+                sessionBonusInfo.style.display = 'block';
+
                 if (sessionData.eloChange === undefined) {
-                    const diffMultiplier = [0.5, 0.8, 1, 1.2, 1.5, 2][sessionData.difficultyId - 1] || 1;
+                    const multipliers = [1, 1.8, 2.5, 4, 7, 12];
+                    const diffMultiplier = multipliers[sessionData.difficultyId - 1] || 1;
                     const dailyFactor = sessionData.isDaily ? 5 : 1;
                     
-                    // RP DECAY / GAIN REDUCTION LOGIC
-                    // Je höher die RP, desto weniger Punkte bekommt man für die gleiche Leistung.
-                    // Wir skalieren den Gewinn mit einem Faktor, der bei höheren RP sinkt.
-                    const gainDecayFactor = Math.max(0.2, 1 - (UserProfile.rp / 20000));
+                    const matchBonus = 1 + (bonusPercent * 0.01);
                     
-                    let baseScoreDiff = avg - 75;
-                    let eloChange = Math.round(baseScoreDiff * diffMultiplier * dailyFactor * gainDecayFactor);
+                    let baseScoreDiff = 0;
+                    if (avg > 75) {
+                        baseScoreDiff = Math.pow(avg - 75, 1.2) * 2; 
+                    } else {
+                        baseScoreDiff = avg - 75; 
+                    }
+
+                    // Berechnung des Basis-Gewinns ohne Bonus
+                    const baseEloChange = Math.round(baseScoreDiff * diffMultiplier * dailyFactor);
+                    // Berechnung des totalen Gewinns inklusive Bonus
+                    const totalEloChange = Math.round(baseEloChange * matchBonus);
                     
-                    // Verluste werden bei hohen Rängen NICHT reduziert (Bestrafung für Fehler bleibt hart)
-                    if (eloChange < 0) {
-                        eloChange = Math.max(-100, Math.round(baseScoreDiff * diffMultiplier * dailyFactor));
+                    // Der reine Bonusbetrag (die "Gold" Extra XP)
+                    const extraBonusAmount = totalEloChange - baseEloChange;
+
+                    let finalChange = totalEloChange;
+                    if (finalChange < 0) {
+                        finalChange = Math.max(-100, Math.round((avg - 75) * diffMultiplier * dailyFactor));
                     }
                     
-                    UserProfile.rp = Math.max(0, UserProfile.rp + eloChange); 
+                    const oldRank = getRankInfo(UserProfile.rp);
+                    UserProfile.rp = Math.max(0, UserProfile.rp + finalChange); 
+                    const newRank = getRankInfo(UserProfile.rp);
+
+                    if (newRank.rankString !== oldRank.rankString && UserProfile.rp > oldRank.rp) {
+                        const overlay = document.getElementById('rank-up-overlay');
+                        const icon = document.getElementById('overlay-rank-icon');
+                        const name = document.getElementById('overlay-rank-name');
+                        icon.textContent = newRank.icon;
+                        name.textContent = newRank.rankString.toUpperCase();
+                        overlay.classList.add('active');
+                    }
+
                     UserProfile.save(); 
-                    sessionData.eloChange = eloChange;
+                    sessionData.eloChange = finalChange;
+                    sessionData.bonusAmount = extraBonusAmount;
                 }
+
                 const sign = sessionData.eloChange >= 0 ? '+' : '';
                 eloChangeText = ` (${sign}${sessionData.eloChange})`;
+
+                // Update der Bonus Gold Anzeige unter dem RP Wert
+                if (statBonusVal && sessionData.bonusAmount > 0) {
+                    statBonusVal.textContent = `Bonus: +${sessionData.bonusAmount}`;
+                    statBonusVal.style.display = 'block';
+                } else if(statBonusVal) {
+                    statBonusVal.style.display = 'none';
+                }
+            } else {
+                sessionBonusInfo.style.display = 'none';
+                if(statBonusVal) statBonusVal.style.display = 'none';
             }
 
             document.getElementById('stat-elo').textContent = `${UserProfile.rp}${eloChangeText}`;
@@ -1548,7 +1718,7 @@
             constructor(eventBus) {
                 this.bus = eventBus;
                 this.currentRound = 1;
-                this.maxRounds = 10;
+                this.maxRounds = 5; 
                 this.currentDifficulty = DIFFICULTIES[0];
                 this.actualDotCount = 0;
                 this.isPlaying = false;
@@ -1602,7 +1772,7 @@
                             else if (diffDays > 1) UserProfile.streak = 1;
                         } else UserProfile.streak = 1;
 
-                        UserProfile.lastDaily = { date: seedStr, acc: 0 }; // Placeholder
+                        UserProfile.lastDaily = { date: seedStr, acc: 0 }; 
                         UserProfile.save();
                     }
                     renderStatsSummary({ history: this.sessionHistory, difficultyId: this.currentDifficulty.id, isDaily: this.isDaily }, 0);
@@ -1696,7 +1866,7 @@
 
             bindEvents() {
                 document.addEventListener('updateDifficultyMenu', () => this.setupDifficultyMenu());
-                document.addEventListener('startClassicGame', () => { this.state.sessionHistory = []; this.state.isDaily = false; this.state.rng = this.renderer.rng = Math.random; this.state.currentRound = 1; this.state.maxRounds = 10; this.state.startRound(); });
+                document.addEventListener('startClassicGame', () => { this.state.sessionHistory = []; this.state.isDaily = false; this.state.rng = this.renderer.rng = Math.random; this.state.currentRound = 1; this.state.maxRounds = 5; this.state.startRound(); });
                 document.addEventListener('startDailyGame', () => {
                     this.state.sessionHistory = []; this.state.isDaily = true;
                     const today = new Date();
@@ -1750,7 +1920,7 @@
             const bus = new GameEventBus();
             const state = new GameState(bus);
             const ui = new UIManager(bus, state);
-            UserProfile.load(); // Initialer Load
+            UserProfile.load(); 
         };
         document.addEventListener('DOMContentLoaded', initGame);
     </script>
