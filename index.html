@@ -678,7 +678,7 @@
             <div class="game-card" id="start-daily-card">
                 <div class="card-tag">DAILY</div>
                 <h3>Daily Challenge</h3>
-                <p>One seeded round per day. Globally shared. Shareable result.</p>
+                <p>5 seeded rounds per day. Escalating difficulty. Globally shared.</p>
             </div>
 
             <div class="game-card disabled">
@@ -984,7 +984,7 @@
                 card.classList.remove('disabled');
                 card.style.pointerEvents = 'auto';
                 h3.textContent = "Daily Challenge";
-                p.textContent = "One seeded round per day. Globally shared. Shareable result.";
+                p.textContent = "5 seeded rounds per day. Escalating difficulty. Globally shared.";
             }
         }
 
@@ -1410,6 +1410,9 @@
                     }, 0); // Start auf Seite 0
                     showView('stats-view');
                 } else {
+                    if (this.isDaily) {
+                        this.setDifficulty(this.currentRound);
+                    }
                     this.startRound();
                 }
             }
@@ -1605,9 +1608,9 @@
                     
                     this.state.rng = seededRng;
                     this.renderer.rng = seededRng;
-                    this.state.setDifficulty(3); 
+                    this.state.setDifficulty(1); 
                     this.state.currentRound = 1;
-                    this.state.maxRounds = 1;
+                    this.state.maxRounds = 5;
                     this.state.startRound();
                 });
 
