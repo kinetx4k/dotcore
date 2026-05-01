@@ -597,6 +597,26 @@
         .bd-bar-fill { height: 100%; position: absolute; left: 0; top: 0; border-radius: 3px; }
         .bd-acc { width: 50px; text-align: right; font-weight: bold; color: var(--success-color);}
 
+        /* PAGINATION STYLES */
+        .pagination-controls {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 15px;
+            margin-top: 15px;
+        }
+        .page-btn {
+            background: #0b0e14;
+            color: var(--text-muted);
+            border: 1px solid var(--card-border);
+            padding: 8px 15px;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+        .page-btn:hover:not(:disabled) { background: var(--card-hover); color: white; }
+        .page-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+
         .end-actions {
             display: flex;
             justify-content: center;
@@ -895,7 +915,7 @@
 
         document.getElementById('global-logo').addEventListener('click', () => showView('main-menu'));
         document.getElementById('nav-btn-ranks').addEventListener('click', () => { renderLeaderboard(); showView('ranks-view'); });
-        document.getElementById('nav-btn-stats').addEventListener('click', () => { renderStatsSummary(); showView('stats-view'); });
+        document.getElementById('nav-btn-stats').addEventListener('click', () => { renderStatsSummary(null, 0); showView('stats-view'); });
         document.getElementById('nav-btn-profile').addEventListener('click', () => showView('profile-view'));
         
         document.getElementById('start-classic-card').addEventListener('click', () => showView('difficulty-view'));
@@ -1074,8 +1094,14 @@
             });
         }
 
-        // Stats View Logic 
-        function renderStatsSummary(sessionData = null) {
+        // Stats View Logic mit Paginierung
+        let currentStatsSessionData = null;
+        let currentStatsPage = 0;
+
+        function renderStatsSummary(sessionData = null, page = 0) {
+            currentStatsSessionData = sessionData;
+            currentStatsPage = page;
+            
             const historyToUse = sessionData ? sessionData.history : UserProfile.history;
             const bdContainer = document.getElementById('stats-breakdown');
             bdContainer.innerHTML = '';
@@ -1100,19 +1126,51 @@
             let sumAcc = 0;
             let bestAcc = 0;
 
-            historyToUse.forEach((rd, idx) => {
+            historyToUse.forEach((rd) => {
                 sumAcc += rd.accuracy;
                 if(rd.accuracy > bestAcc) bestAcc = rd.accuracy;
+            });
 
+            const avg = sumAcc / historyToUse.length;
+            document.getElementById('stat-avg').textContent = `${avg.toFixed(1)}%`;
+            document.getElementById('stat-best').textContent = `${bestAcc.toFixed(1)}%`;
+            document.getElementById('stat-rounds').textContent = historyToUse.length;
+
+            let eloChangeText = '';
+            if (sessionData && !sessionData.isDaily) {
+                // ELO wird nur einmal pro Spielrunde berechnet (verhindert Neubrechnung bei Seitenwechsel)
+                if (sessionData.eloChange === undefined) {
+                    const diffMultiplier = [0.5, 0.8, 1, 1.2, 1.5, 2][sessionData.difficultyId - 1] || 1;
+                    const eloChange = Math.round((avg - 75) * diffMultiplier * 2);
+                    UserProfile.elo = Math.max(0, UserProfile.elo + eloChange); 
+                    UserProfile.save(); 
+                    sessionData.eloChange = eloChange;
+                }
+                
+                const sign = sessionData.eloChange >= 0 ? '+' : '';
+                eloChangeText = ` (${sign}${sessionData.eloChange})`;
+            }
+
+            document.getElementById('stat-elo').textContent = `${UserProfile.elo}${eloChangeText}`;
+
+            // --- PAGINIERUNG (Immer das Neueste zuerst) ---
+            const reversedHistory = [...historyToUse].reverse();
+            const totalPages = Math.ceil(reversedHistory.length / 10);
+            const startIndex = currentStatsPage * 10;
+            const pageHistory = reversedHistory.slice(startIndex, startIndex + 10);
+
+            pageHistory.forEach((rd, idx) => {
                 let barColor = "#ef4444"; 
                 let guessColor = "#ef4444";
                 if(rd.accuracy > 90) { barColor = "#4ade80"; guessColor = "#4ade80"; }
                 else if (rd.accuracy > 70) { barColor = "#facc15"; guessColor = "#facc15"; }
 
+                const originalRoundNum = historyToUse.length - (startIndex + idx);
+
                 const row = document.createElement('div');
                 row.className = 'bd-row';
                 row.innerHTML = `
-                    <div class="bd-num">${idx+1}</div>
+                    <div class="bd-num">${originalRoundNum}</div>
                     <div class="bd-actual">${rd.actual}</div>
                     <div class="bd-guess" style="color: ${guessColor};">${rd.guess}</div>
                     <div class="bd-bar-bg">
@@ -1123,24 +1181,22 @@
                 bdContainer.appendChild(row);
             });
 
-            const avg = sumAcc / historyToUse.length;
-            document.getElementById('stat-avg').textContent = `${avg.toFixed(1)}%`;
-            document.getElementById('stat-best').textContent = `${bestAcc.toFixed(1)}%`;
-            document.getElementById('stat-rounds').textContent = historyToUse.length;
+            // Paginierungs-Buttons anzeigen, wenn es mehr als 1 Seite gibt
+            if (totalPages > 1) {
+                const pagDiv = document.createElement('div');
+                pagDiv.className = 'pagination-controls';
+                pagDiv.innerHTML = `
+                    <button class="page-btn" id="page-prev" ${currentStatsPage === 0 ? 'disabled' : ''}>&larr; Prev</button>
+                    <span style="color: var(--text-muted); font-size: 0.9rem;">Page ${currentStatsPage + 1} of ${totalPages}</span>
+                    <button class="page-btn" id="page-next" ${currentStatsPage >= totalPages - 1 ? 'disabled' : ''}>Next &rarr;</button>
+                `;
+                bdContainer.appendChild(pagDiv);
 
-            let eloChangeText = '';
-            if (sessionData && !sessionData.isDaily) {
-                const diffMultiplier = [0.5, 0.8, 1, 1.2, 1.5, 2][sessionData.difficultyId - 1] || 1;
-                const eloChange = Math.round((avg - 75) * diffMultiplier * 2);
-                
-                UserProfile.elo = Math.max(0, UserProfile.elo + eloChange); 
-                UserProfile.save(); 
-                
-                const sign = eloChange >= 0 ? '+' : '';
-                eloChangeText = ` (${sign}${eloChange})`;
+                const btnPrev = pagDiv.querySelector('#page-prev');
+                const btnNext = pagDiv.querySelector('#page-next');
+                if (btnPrev) btnPrev.onclick = () => renderStatsSummary(currentStatsSessionData, currentStatsPage - 1);
+                if (btnNext) btnNext.onclick = () => renderStatsSummary(currentStatsSessionData, currentStatsPage + 1);
             }
-
-            document.getElementById('stat-elo').textContent = `${UserProfile.elo}${eloChangeText}`;
         }
 
         /**
@@ -1296,7 +1352,7 @@
                         history: this.sessionHistory, 
                         difficultyId: this.currentDifficulty.id,
                         isDaily: this.isDaily
-                    });
+                    }, 0); // Start auf Seite 0
                     showView('stats-view');
                 } else {
                     this.startRound();
