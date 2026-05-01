@@ -671,7 +671,7 @@
             </select>
         </div>
         <div class="leaderboard" id="leaderboard-list">
-            <div style="color:var(--text-muted); text-align:center;">Loading Real Players...</div>
+            <div style="color:var(--text-muted); text-align:center;">Loading Players...</div>
         </div>
     </div>
 
@@ -834,7 +834,6 @@
         const submitDailyScore = async (acc) => {
             if (!currentUser || !db) return;
             try {
-                // Determine today's challenge seed for document grouping
                 const today = new Date();
                 const seedStr = `${today.getFullYear()}_${today.getMonth() + 1}_${today.getDate()}`;
                 const docRef = doc(db, 'artifacts', appId, 'public', 'data', `daily_${seedStr}`, currentUser.uid);
@@ -853,7 +852,6 @@
         const saveGlobalProfile = async () => {
             if (!currentUser || !db) return;
             try {
-                // Determine best accuracies per difficulty from history
                 let diffBests = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0 };
                 let avg = 0;
                 
@@ -912,7 +910,6 @@
         });
         document.getElementById('stats-btn-home').addEventListener('click', () => showView('main-menu'));
 
-        // Handle category change in Ranks view
         document.getElementById('leaderboard-category').addEventListener('change', () => {
             renderLeaderboard();
         });
@@ -925,19 +922,20 @@
          */
         const UserProfile = {
             name: "Player1",
-            photo: "", // Base64
+            photo: "", 
             elo: 1000,
-            history: [], // Stores objects { round, actual, guess, accuracy, diffId }
+            history: [], 
+            lastDaily: null, // Tracks local daily score
             
             save() {
-                localStorage.setItem('dotcore_profile', JSON.stringify({name: this.name, photo: this.photo, elo: this.elo}));
+                localStorage.setItem('dotcore_profile', JSON.stringify({name: this.name, photo: this.photo, elo: this.elo, lastDaily: this.lastDaily}));
                 localStorage.setItem('dotcore_history', JSON.stringify(this.history));
                 updateHomeScore();
-                saveGlobalProfile(); // Sync to cloud
+                saveGlobalProfile(); 
             },
             load() {
                 const p = JSON.parse(localStorage.getItem('dotcore_profile'));
-                if (p) { this.name = p.name || "Player1"; this.photo = p.photo || ""; this.elo = p.elo || 1000; }
+                if (p) { this.name = p.name || "Player1"; this.photo = p.photo || ""; this.elo = p.elo || 1000; this.lastDaily = p.lastDaily || null; }
                 const h = JSON.parse(localStorage.getItem('dotcore_history'));
                 if (h) this.history = h;
                 updateHomeScore();
@@ -982,7 +980,6 @@
             setTimeout(() => msg.style.display = 'none', 2000);
         });
 
-        // Initialize Profile UI
         UserProfile.load();
         profileName.value = UserProfile.name;
         if(UserProfile.photo) {
@@ -990,80 +987,94 @@
             profilePreview.innerHTML = "";
         }
 
-        // Ranks View Logic (Real Database Multiple Categories)
+        // Ranks View Logic (Robust & Always visible)
         async function renderLeaderboard() {
             const list = document.getElementById('leaderboard-list');
             const category = document.getElementById('leaderboard-category').value;
-            list.innerHTML = '<div style="color:var(--text-muted); text-align:center;">Loading Real Players...</div>';
+            list.innerHTML = '<div style="color:var(--text-muted); text-align:center;">Loading Players...</div>';
             
-            if (!currentUser || !db) {
-                list.innerHTML = '<div style="color:#ef4444; text-align:center;">Could not connect to leaderboard.</div>';
+            const today = new Date();
+            const seedStr = `${today.getFullYear()}_${today.getMonth() + 1}_${today.getDate()}`;
+
+            let players = [];
+            
+            // IMMER den lokalen Spieler hinzufügen, damit das Leaderboard nie kaputt aussieht
+            let localPlayer = {
+                id: currentUser ? currentUser.uid : 'local_user',
+                name: UserProfile.name,
+                photo: UserProfile.photo,
+                elo: UserProfile.elo,
+                avg: UserProfile.history.length > 0 ? (UserProfile.history.reduce((a,b)=>a+b.accuracy,0)/UserProfile.history.length) : 0,
+                diff_1: 0, diff_2: 0, diff_3: 0, diff_4: 0, diff_5: 0, diff_6: 0,
+                acc: (UserProfile.lastDaily && UserProfile.lastDaily.date === seedStr) ? UserProfile.lastDaily.acc : 0
+            };
+            
+            UserProfile.history.forEach(r => {
+                if (r.diffId && r.accuracy > localPlayer[`diff_${r.diffId}`]) {
+                    localPlayer[`diff_${r.diffId}`] = r.accuracy;
+                }
+            });
+
+            players.push(localPlayer);
+
+            // Fetch Online Players (wenn verfügbar)
+            if (db) {
+                try {
+                    let querySnapshot;
+                    if (category === 'daily') {
+                        querySnapshot = await getDocs(collection(db, 'artifacts', appId, 'public', 'data', `daily_${seedStr}`));
+                    } else {
+                        querySnapshot = await getDocs(collection(db, 'artifacts', appId, 'public', 'data', 'global_stats'));
+                    }
+                    
+                    querySnapshot.forEach((doc) => {
+                        if(doc.id !== localPlayer.id) { // Lokalen Spieler nicht doppelt
+                            players.push({ id: doc.id, ...doc.data() });
+                        }
+                    });
+                } catch(e) {
+                    console.error("Leaderboard Offline. Showing Local Stats Only.");
+                }
+            }
+
+            let sortKey = category === 'daily' ? 'acc' : category;
+            
+            // Filter und Sortierung
+            players = players.filter(p => p[sortKey] !== undefined && p[sortKey] > 0);
+            players.sort((a,b) => b[sortKey] - a[sortKey]);
+            
+            if(players.length === 0) {
+                list.innerHTML = '<div style="color:var(--text-muted); text-align:center;">No players found for this category yet. Play a round!</div>';
                 return;
             }
 
-            try {
-                let players = [];
-                let sortKey = 'acc';
+            list.innerHTML = '';
+            players.forEach((p, idx) => {
+                const isMe = p.id === localPlayer.id;
+                const row = document.createElement('div');
+                row.className = 'rank-item';
+                if(isMe) row.style.backgroundColor = 'rgba(124, 58, 237, 0.1)';
                 
-                if (category === 'daily') {
-                    const today = new Date();
-                    const seedStr = `${today.getFullYear()}_${today.getMonth() + 1}_${today.getDate()}`;
-                    const querySnapshot = await getDocs(collection(db, 'artifacts', appId, 'public', 'data', `daily_${seedStr}`));
-                    querySnapshot.forEach((doc) => {
-                        players.push({ id: doc.id, ...doc.data() });
-                    });
-                    sortKey = 'acc';
-                } else {
-                    const querySnapshot = await getDocs(collection(db, 'artifacts', appId, 'public', 'data', 'global_stats'));
-                    querySnapshot.forEach((doc) => {
-                        players.push({ id: doc.id, ...doc.data() });
-                    });
-                    sortKey = category; // This maps directly to 'elo', 'avg', 'diff_1', etc.
+                const imgStyle = p.photo ? `background-image: url(${p.photo});` : '';
+                
+                let displayScore = p[sortKey];
+                if (sortKey !== 'elo') {
+                    displayScore = displayScore.toFixed(1) + '%';
                 }
                 
-                // Filter out scores that are 0 or missing for the requested category
-                players = players.filter(p => p[sortKey] && p[sortKey] > 0);
-                
-                // Sort by accuracy or ELO (Highest First)
-                players.sort((a,b) => b[sortKey] - a[sortKey]);
-                
-                if(players.length === 0) {
-                    list.innerHTML = '<div style="color:var(--text-muted); text-align:center;">No players found for this category yet. Be the first!</div>';
-                    return;
-                }
-
-                list.innerHTML = '';
-                players.forEach((p, idx) => {
-                    const isMe = p.id === currentUser.uid;
-                    const row = document.createElement('div');
-                    row.className = 'rank-item';
-                    if(isMe) row.style.backgroundColor = 'rgba(124, 58, 237, 0.1)';
-                    
-                    const imgStyle = p.photo ? `background-image: url(${p.photo});` : '';
-                    
-                    // Format score appropriately
-                    let displayScore = p[sortKey];
-                    if (sortKey !== 'elo') {
-                        displayScore = displayScore.toFixed(1) + '%';
-                    }
-                    
-                    row.innerHTML = `
-                        <div class="rank-pos">#${idx+1}</div>
-                        <div class="rank-name">
-                            <div class="rank-img" style="${imgStyle}"></div>
-                            <span style="${isMe ? 'color: var(--accent-color); font-weight: bold;' : ''}">${p.name || 'Anonymous'} ${isMe ? '(You)' : ''}</span>
-                        </div>
-                        <div class="rank-score">${displayScore}</div>
-                    `;
-                    list.appendChild(row);
-                });
-            } catch(e) {
-                console.error("Failed fetching leaderboard", e);
-                list.innerHTML = '<div style="color:#ef4444; text-align:center;">Error loading leaderboard.</div>';
-            }
+                row.innerHTML = `
+                    <div class="rank-pos">#${idx+1}</div>
+                    <div class="rank-name">
+                        <div class="rank-img" style="${imgStyle}"></div>
+                        <span style="${isMe ? 'color: var(--accent-color); font-weight: bold;' : ''}">${p.name || 'Anonymous'} ${isMe ? '(You)' : ''}</span>
+                    </div>
+                    <div class="rank-score">${displayScore}</div>
+                `;
+                list.appendChild(row);
+            });
         }
 
-        // Stats View Logic (Includes ELO calculation)
+        // Stats View Logic 
         function renderStatsSummary(sessionData = null) {
             const historyToUse = sessionData ? sessionData.history : UserProfile.history;
             const bdContainer = document.getElementById('stats-breakdown');
@@ -1093,8 +1104,7 @@
                 sumAcc += rd.accuracy;
                 if(rd.accuracy > bestAcc) bestAcc = rd.accuracy;
 
-                // Color coding
-                let barColor = "#ef4444"; // red
+                let barColor = "#ef4444"; 
                 let guessColor = "#ef4444";
                 if(rd.accuracy > 90) { barColor = "#4ade80"; guessColor = "#4ade80"; }
                 else if (rd.accuracy > 70) { barColor = "#facc15"; guessColor = "#facc15"; }
@@ -1118,16 +1128,13 @@
             document.getElementById('stat-best').textContent = `${bestAcc.toFixed(1)}%`;
             document.getElementById('stat-rounds').textContent = historyToUse.length;
 
-            // ELO Logic
             let eloChangeText = '';
             if (sessionData && !sessionData.isDaily) {
-                // Calculate ELO based on accuracy and difficulty modifier
                 const diffMultiplier = [0.5, 0.8, 1, 1.2, 1.5, 2][sessionData.difficultyId - 1] || 1;
-                // Target accuracy to gain ELO is 75%. Below 75% loses ELO.
                 const eloChange = Math.round((avg - 75) * diffMultiplier * 2);
                 
-                UserProfile.elo = Math.max(0, UserProfile.elo + eloChange); // No negative ELO
-                UserProfile.save(); // Also updates global profile
+                UserProfile.elo = Math.max(0, UserProfile.elo + eloChange); 
+                UserProfile.save(); 
                 
                 const sign = eloChange >= 0 ? '+' : '';
                 eloChangeText = ` (${sign}${eloChange})`;
@@ -1135,7 +1142,6 @@
 
             document.getElementById('stat-elo').textContent = `${UserProfile.elo}${eloChangeText}`;
         }
-
 
         /**
          * ---------------------------------------------------------
@@ -1152,7 +1158,6 @@
             { id: 6, name: "Inhuman", desc: "Maximum density, chaotic layout", minDots: 250, maxDots: 750, showTimeMs: 2500, errorMarginPct: 0.3, color: "#ef4444" }
         ];
 
-        // Seeded RNG Generator for Daily Challenge
         function mulberry32(a) {
             return function() {
               var t = a += 0x6D2B79F5;
@@ -1173,7 +1178,6 @@
             }
         }
 
-        // --- TIMER SYSTEM ---
         class TimerSystem {
             constructor() {
                 this.interval = null;
@@ -1185,7 +1189,6 @@
                 element.style.transition = 'none';
                 element.style.width = '100%';
                 
-                // Force Reflow
                 void element.offsetWidth;
                 
                 element.style.transition = `width ${durationMs}ms linear`;
@@ -1222,12 +1225,12 @@
                 this.bus = eventBus;
                 this.currentRound = 1;
                 this.maxRounds = 10;
-                this.currentDifficulty = DIFFICULTIES[2]; // Default Medium
+                this.currentDifficulty = DIFFICULTIES[2]; 
                 this.actualDotCount = 0;
                 this.isPlaying = false;
                 this.rng = Math.random;
                 this.isDaily = false;
-                this.sessionHistory = []; // Tracks just this game
+                this.sessionHistory = []; 
             }
 
             setDifficulty(levelId) {
@@ -1246,7 +1249,8 @@
                     diffName: this.currentDifficulty.name,
                     dotCount: this.actualDotCount,
                     duration: this.currentDifficulty.showTimeMs,
-                    maxSlider: max * 2 // Slider max ist etwas höher als theoretisches Maximum
+                    minSlider: min,
+                    maxSlider: max
                 });
             }
 
@@ -1256,13 +1260,11 @@
                 const actual = this.actualDotCount;
                 const difference = actual - guess;
                 
-                // Accuracy berechnen (0 bis 100%)
                 let accuracy = 100 - (Math.abs(difference) / actual * 100);
                 if(accuracy < 0) accuracy = 0;
 
                 this.isPlaying = false;
                 
-                // Track internally and globally (passing difficulty ID)
                 this.sessionHistory.push({ actual, guess, accuracy });
                 UserProfile.addRoundResult(actual, guess, accuracy, this.currentDifficulty.id);
                 
@@ -1280,10 +1282,16 @@
                     
                     if(this.isDaily) {
                         const avgAcc = this.sessionHistory.reduce((a,b)=>a+b.accuracy, 0) / this.sessionHistory.length;
+                        
+                        // Speichere Daily Score Lokal für sofortiges Feedback
+                        const today = new Date();
+                        const seedStr = `${today.getFullYear()}_${today.getMonth() + 1}_${today.getDate()}`;
+                        UserProfile.lastDaily = { date: seedStr, acc: avgAcc };
+                        UserProfile.save();
+
                         submitDailyScore(avgAcc);
                     }
 
-                    // Game Over - Show Stats View for this session with History AND Difficulty ID
                     renderStatsSummary({ 
                         history: this.sessionHistory, 
                         difficultyId: this.currentDifficulty.id,
@@ -1303,7 +1311,6 @@
             }
 
             clear() {
-                // Keep the progress bar element if it exists
                 const bar = document.getElementById('game-progress-bar');
                 this.container.innerHTML = '';
                 if(bar) this.container.appendChild(bar);
@@ -1319,7 +1326,6 @@
                     const dot = document.createElement('div');
                     dot.className = 'dot';
                     
-                    // Zufällige Größe zwischen 8px und 25px
                     const size = 8 + this.rng() * 17;
                     dot.style.width = `${size}px`;
                     dot.style.height = `${size}px`;
@@ -1335,7 +1341,6 @@
             }
         }
 
-        // Animation Helper
         function animateNumber(element, start, end, duration, isFloat = false) {
             let startTimestamp = null;
             const step = (timestamp) => {
@@ -1366,7 +1371,6 @@
                 this.state = state;
                 this.timerSystem = new TimerSystem();
                 
-                // UI Elemente
                 this.roundDisplay = document.getElementById('round-display');
                 this.diffDisplay = document.getElementById('diff-display');
                 this.statusText = document.getElementById('status-text');
@@ -1374,7 +1378,6 @@
                 this.resultArea = document.getElementById('result-area');
                 this.gameArea = document.getElementById('game-area');
                 
-                // Input & Timers
                 this.slider = document.getElementById('guess-slider');
                 this.sliderVal = document.getElementById('slider-val');
                 this.submitBtn = document.getElementById('submit-btn');
@@ -1382,7 +1385,6 @@
                 this.progressBar = document.getElementById('game-progress-bar');
                 this.inputTimerText = document.getElementById('input-timer');
 
-                // Results
                 this.resAcc = document.getElementById('res-acc');
                 this.resActual = document.getElementById('res-actual');
                 this.resGuess = document.getElementById('res-guess');
@@ -1422,7 +1424,6 @@
             }
 
             bindEvents() {
-                // Spiel Start Signal
                 document.addEventListener('startClassicGame', () => {
                     this.state.sessionHistory = [];
                     this.state.isDaily = false;
@@ -1433,7 +1434,6 @@
                     this.state.startRound();
                 });
 
-                // Daily Challenge Signal
                 document.addEventListener('startDailyGame', () => {
                     this.state.sessionHistory = [];
                     this.state.isDaily = true;
@@ -1443,18 +1443,16 @@
                     
                     this.state.rng = seededRng;
                     this.renderer.rng = seededRng;
-                    this.state.setDifficulty(3); // Medium
+                    this.state.setDifficulty(3); 
                     this.state.currentRound = 1;
                     this.state.maxRounds = 1;
                     this.state.startRound();
                 });
 
-                // Slider Update
                 this.slider.addEventListener('input', (e) => {
                     this.sliderVal.textContent = e.target.value;
                 });
 
-                // Buttons
                 this.submitBtn.onclick = () => {
                     this.timerSystem.stop();
                     this.state.checkGuess(parseInt(this.slider.value));
@@ -1462,13 +1460,11 @@
                 
                 this.nextBtn.onclick = () => this.state.nextRound();
 
-                // System Events
                 this.bus.subscribe('round_started', (data) => this.prepareRound(data));
                 this.bus.subscribe('guess_evaluated', (data) => this.showResult(data));
             }
 
             prepareRound(data) {
-                // UI Reset
                 this.inputArea.style.display = 'none';
                 this.resultArea.style.display = 'none';
                 this.gameArea.style.display = 'flex';
@@ -1478,17 +1474,16 @@
                 this.diffDisplay.textContent = data.diffName;
                 this.statusText.textContent = "WATCH THE SCREEN";
 
-                // Slider Setup
+                // Slider Setup mit exakten Grenzen
+                this.slider.min = data.minSlider;
                 this.slider.max = data.maxSlider;
-                this.slider.value = Math.floor(data.maxSlider / 2);
+                this.slider.value = Math.floor((data.minSlider + data.maxSlider) / 2);
                 this.sliderVal.textContent = this.slider.value;
 
-                // Flash Sequenz
                 this.renderer.clear();
                 setTimeout(() => {
                     this.renderer.drawDots(data.dotCount);
                     
-                    // Timer Bar für Anzeige
                     this.progressBar.style.display = 'block';
                     this.timerSystem.startProgressBar(this.progressBar, data.duration, () => {
                         this.renderer.clear();
@@ -1497,9 +1492,7 @@
                         this.gameArea.style.display = 'none';
                         this.inputArea.style.display = 'flex';
                         
-                        // Starte den 15s Timer für die Eingabe
                         this.timerSystem.startTextCountdown(this.inputTimerText, 15, () => {
-                            // Automatisch absenden wenn Zeit um
                             this.submitBtn.click();
                         });
                     });
@@ -1515,12 +1508,10 @@
 
                 this.renderer.drawDots(data.actual);
 
-                // Farbe anpassen
                 if(data.accuracy > 90) this.resAcc.style.color = "#4ade80";
                 else if (data.accuracy > 70) this.resAcc.style.color = "#facc15";
                 else this.resAcc.style.color = "#ef4444";
 
-                // Animationen starten
                 animateNumber(this.resAcc, 0, data.accuracy, 1500, true);
                 animateNumber(this.resActual, 0, data.actual, 1500, false);
                 animateNumber(this.resGuess, 0, data.guess, 1500, false);
