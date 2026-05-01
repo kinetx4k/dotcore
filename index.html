@@ -1197,7 +1197,26 @@
                 // ELO wird nur einmal pro Spielrunde berechnet (verhindert Neubrechnung bei Seitenwechsel)
                 if (sessionData.eloChange === undefined) {
                     const diffMultiplier = [0.5, 0.8, 1, 1.2, 1.5, 2][sessionData.difficultyId - 1] || 1;
-                    const eloChange = Math.round((avg - 75) * diffMultiplier * 2);
+                    
+                    let baseScoreDiff = avg - 75;
+                    let eloFactor = 1.0;
+                    let currentEloForCalc = UserProfile.elo;
+                    
+                    if (baseScoreDiff > 0) {
+                        // Harder to gain ELO when ELO is high
+                        if (currentEloForCalc > 500) {
+                            eloFactor = 500 / currentEloForCalc;
+                            if (eloFactor < 0.1) eloFactor = 0.1;
+                        }
+                    } else {
+                        // Easier to lose ELO when ELO is high
+                        if (currentEloForCalc > 1000) {
+                            eloFactor = 1.0 + ((currentEloForCalc - 1000) / 500); 
+                            if (eloFactor > 3.0) eloFactor = 3.0; 
+                        }
+                    }
+                    
+                    const eloChange = Math.round(baseScoreDiff * diffMultiplier * 2 * eloFactor);
                     UserProfile.elo = Math.max(0, UserProfile.elo + eloChange); 
                     UserProfile.save(); 
                     sessionData.eloChange = eloChange;
@@ -1696,7 +1715,7 @@
                 else if (data.difference < 0) this.resError.classList.add("val-over");
                 else this.resError.classList.add("val-perfect");
 
-                if (this.state.isDaily || this.state.currentRound === this.state.maxRounds) {
+                if (this.state.currentRound === this.state.maxRounds) {
                     this.nextBtn.innerHTML = "View Summary";
                 } else {
                     this.nextBtn.innerHTML = "Next &rarr;";
